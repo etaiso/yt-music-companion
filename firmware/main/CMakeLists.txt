@@ -13,3 +13,8 @@ idf_component_register(
     REQUIRES esp32_s3_touch_amoled_2_16
              esp_websocket_client esp_wifi mdns json nvs_flash esp_netif esp_event
 )
+
+# Generated Material Symbols fonts (ui/mdi_*.c) use the lv_font_conv include
+# guard: with this defined they pull "lvgl.h" (the IDF lvgl component header)
+# instead of the unresolvable "lvgl/lvgl.h".
+target_compile_definitions(${COMPONENT_LIB} PRIVATE LV_LVGL_H_INCLUDE_SIMPLE)
