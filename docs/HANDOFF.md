@@ -176,6 +176,38 @@ pink/grey — drops the outline-vs-filled distinction only.)
 
 ---
 
+## DONE — Mac-side ytmdesktop bridge (core slice)
+
+**Deliverable #2 core slice is built** in `bridge/` (Node, ESM). Implements
+`SPEC-ytmusic-adapter.md` §2–§7 minus the deferred cover-art + mDNS passes.
+
+```
+bridge/
+  package.json            deps: socket.io-client, ws ; scripts: start, auth
+  README.md               prereqs, run, board protocol, env config
+  src/config.js           hosts/ports/appId/token path (env-overridable)
+  src/auth.js             requestcode->request handshake + token persist + re-auth
+  src/ytmd.js             Companion client: Socket.IO realtime + REST /command
+  src/normalize.js        /state -> view-model (gates partial metadata, flags ads)
+  src/board-server.js     board-facing plain-WS: state snapshots + {cmd,arg} in
+  src/index.js            wires it all; board cmd -> POST /command map (§7)
+```
+
+**Verified:** all six files `node --check` clean; `normalize` unit smoke (partial-skip,
+normal track, ad frame, live duration-hide, unknown-state→buffering) and board WS
+roundtrip (snapshot on connect, late-joiner snapshot, `{cmd,arg}` forwarding,
+non-JSON ignored) both pass. The auth + Socket.IO chain needs the live app + the
+one-time Allow click — run `cd bridge && npm install && npm start` on the Mac.
+
+**Decisions taken** (SPEC §10): language **Node**; board transport **WebSocket**.
+
+### Remaining for deliverable #2
+- **Cover art** (§4.4): fetch best `video.thumbnails[]` → resize ~120px → RGB565 →
+  push as a binary frame keyed to the track. `normalize` already exposes `cover_url`.
+- **mDNS discovery** (§4.6): advertise `_ytmboard._tcp` so the board finds the Mac.
+- **Wire the board**: replace the mock feed, point the board WS client at the bridge
+  (`:8765`), connect the `emit(...)` stubs to the `{cmd,arg}` protocol.
+
 ## Then — remaining sequenced deliverables
 
 2. **Mac-side ytmdesktop bridge + protocol** (`SPEC-ytmusic-adapter.md`): build the
