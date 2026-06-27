@@ -40,6 +40,10 @@ export function normalize(state, { connected = true } = {}) {
     source_name: "YouTube Music",
     is_live: isLive,
 
+    track_id: video.id ?? "", // videoId; lets the board pair a cover frame to its track
+
+
+
     title: video.title ?? "",
     artist: video.author ?? "",
     album: video.album ?? "",

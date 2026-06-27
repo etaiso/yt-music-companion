@@ -14,6 +14,7 @@
     "auth": "node src/auth.js"
   },
   "dependencies": {
+    "sharp": "^0.35.1",
     "socket.io-client": "^4.7.5",
     "ws": "^8.18.0"
   }

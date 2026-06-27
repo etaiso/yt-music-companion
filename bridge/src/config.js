@@ -26,3 +26,6 @@ export const BOARD_PORT = Number(process.env.BOARD_PORT ?? 8765);
 
 // Volume step for volume_up/down when falling back to setVolume (SPEC §7).
 export const VOLUME_STEP = Number(process.env.VOLUME_STEP ?? 5);
+
+// Cover-art slot on the board (SPEC §4.4): square, ~120px, pushed as RGB565.
+export const COVER_PX = Number(process.env.COVER_PX ?? 120);

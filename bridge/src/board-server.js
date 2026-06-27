@@ -19,6 +19,7 @@ export class BoardServer {
   constructor({ onCommand } = {}) {
     this.onCommand = onCommand ?? (() => {});
     this.latestVm = null;
+    this.latestCover = null; // RGB565 binary frame for the current track
     this.wss = null;
   }
 
@@ -35,6 +36,7 @@ export class BoardServer {
 
       // Snapshot on connect so a freshly-attached board paints immediately.
       if (this.latestVm) ws.send(this.#frame(this.latestVm));
+      if (this.latestCover) ws.send(this.latestCover); // binary, current cover
 
       ws.on("message", (raw) => this.#handleMessage(raw));
       ws.on("close", () => console.log("[board] client disconnected"));
@@ -75,6 +77,16 @@ export class BoardServer {
     this.latestVm = vm;
     if (!this.wss) return;
     const frame = this.#frame(vm);
+    for (const ws of this.wss.clients) {
+      if (ws.readyState === ws.OPEN) ws.send(frame);
+    }
+  }
+
+  // Push a cover-art binary frame (RGB565, see cover.js) to every board, and
+  // remember it for late joiners. Pass null to clear (e.g. track with no art).
+  broadcastCover(frame) {
+    this.latestCover = frame;
+    if (!this.wss || !frame) return;
     for (const ws of this.wss.clients) {
       if (ws.readyState === ws.OPEN) ws.send(frame);
     }

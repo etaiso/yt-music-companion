@@ -201,12 +201,18 @@ one-time Allow click — run `cd bridge && npm install && npm start` on the Mac.
 
 **Decisions taken** (SPEC §10): language **Node**; board transport **WebSocket**.
 
+**Cover-art pass DONE** (§4.4): `src/cover.js` fetches the best thumbnail, square-crops
+to `COVER_PX` (120) via `sharp`, encodes RGB565, and pushes an 8-byte-header binary
+frame (`"YC"` magic / version / format / w / h + pixels). `board-server` broadcasts it
+and replays it to late joiners; `index` re-renders only when the art URL changes and
+skips ads. `normalize` adds `track_id` so the board pairs a cover to its track. Smoke
+tests cover the encode (header, dims, red→0xF800, failure→null) and binary WS delivery.
+
 ### Remaining for deliverable #2
-- **Cover art** (§4.4): fetch best `video.thumbnails[]` → resize ~120px → RGB565 →
-  push as a binary frame keyed to the track. `normalize` already exposes `cover_url`.
 - **mDNS discovery** (§4.6): advertise `_ytmboard._tcp` so the board finds the Mac.
 - **Wire the board**: replace the mock feed, point the board WS client at the bridge
-  (`:8765`), connect the `emit(...)` stubs to the `{cmd,arg}` protocol.
+  (`:8765`), connect the `emit(...)` stubs to the `{cmd,arg}` protocol, decode the
+  cover binary frame into the cover slot.
 
 ## Then — remaining sequenced deliverables
 
