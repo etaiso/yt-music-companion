@@ -35,10 +35,12 @@ Force a fresh handshake (e.g. token revoked) with `npm run auth`.
   metadata and flagging ads.
 - **Serve the board** — plain WS on `:8765`: snapshot on connect, fresh snapshot on
   every change; accepts `{ cmd, arg }` and maps to `POST /command`.
+- **Cover art** — fetch the best thumbnail, square-crop to `COVER_PX`, encode RGB565,
+  push as a binary frame keyed to the current track (re-rendered only when the art
+  URL changes).
 
-**Deferred to a later pass** (SPEC §4.4, §4.6): cover-art fetch/resize → RGB565
-binary frames, and mDNS discovery. Until then the board uses the gradient cover
-placeholder and a configured bridge address.
+**Deferred to a later pass** (SPEC §4.6): mDNS discovery. Until then the board uses a
+configured bridge address.
 
 ## Board protocol (text JSON over WebSocket)
 
@@ -56,6 +58,17 @@ board → bridge:
 ```
 Commands: `toggle_play | next | prev | toggle_favorite | seek | volume_up | volume_down`.
 
+Cover art is a **binary** frame (little-endian), keyed to the current `track_id`:
+```
+off 0  "YC"   magic (2 bytes)
+off 2  1      version (u8)
+off 3  0      format (u8) -> RGB565, low byte first (LVGL native LE)
+off 4  width  (u16)
+off 6  height (u16)
+off 8  pixels width*height*2 bytes, RGB565 LE   (blit into an lv_image_dsc_t)
+```
+Text frame = state JSON; binary frame = cover. The board distinguishes by WS opcode.
+
 ## Config (env overrides)
 
 | Env | Default | Purpose |
@@ -64,6 +77,7 @@ Commands: `toggle_play | next | prev | toggle_favorite | seek | volume_up | volu
 | `BOARD_PORT` | `8765` | board-facing WebSocket port |
 | `YTMBOARD_TOKEN_PATH` | `~/.ytmboard/token.json` | persisted token location |
 | `YTMD_APP_ID` | `ytmboard` | Companion app identity |
+| `COVER_PX` | `120` | cover-art square size pushed to the board |
 
 ## Quick test without a board
 

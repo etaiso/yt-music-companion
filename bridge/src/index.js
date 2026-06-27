@@ -7,6 +7,7 @@
 // Deferred to a later pass: cover-art RGB565 binary frames, mDNS discovery.
 import { BoardServer } from "./board-server.js";
 import { VOLUME_STEP } from "./config.js";
+import { renderCover } from "./cover.js";
 import { normalize } from "./normalize.js";
 import { YtmdClient } from "./ytmd.js";
 
@@ -39,6 +40,7 @@ async function main() {
   let lastState = null; // last raw /state, for re-emitting on connectivity flips
   let lastVm = null; // last normalized vm, for seek clamping
   let debounceTimer = null;
+  let lastCoverUrl = null; // dedupe: only re-render when the art actually changes
 
   const board = new BoardServer({
     onCommand: async (cmd, arg) => {
@@ -65,6 +67,27 @@ async function main() {
     if (!vm) return; // metadata not ready — skip (SPEC §4.3)
     lastVm = vm;
     board.broadcast(vm);
+    maybePushCover(vm);
+  };
+
+  // Render + push cover art only when the URL changes. Ads have stale/no art —
+  // skip them so the board holds the last good cover instead of flickering.
+  const maybePushCover = (vm) => {
+    if (vm.ad_playing) return;
+    const url = vm.cover_url;
+    if (url === lastCoverUrl) return;
+    lastCoverUrl = url;
+    if (!url) {
+      board.broadcastCover(null); // no art for this track
+      return;
+    }
+    renderCover(url)
+      .then((frame) => {
+        // A newer track may have superseded this render mid-flight — only push
+        // if the url we rendered is still current.
+        if (frame && url === lastCoverUrl) board.broadcastCover(frame);
+      })
+      .catch((err) => console.error(`[cover] ${err.message}`));
   };
 
   const ytmd = new YtmdClient({
