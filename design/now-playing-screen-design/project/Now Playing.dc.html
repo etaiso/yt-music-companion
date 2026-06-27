@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</helmet>
+
+<div data-screen-label="Interactive" style="position:absolute;left:60px;top:60px;width:500px;font-family:Inter,sans-serif;">
+  <div data-drags-parent="1" style="display:flex;align-items:baseline;gap:10px;margin-bottom:14px;">
+    <span style="font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#1A1410;">Interactive</span>
+    <span style="font-size:12px;font-weight:500;color:#8A7A6E;">tap play · like · drag the bar to seek · switch states below</span>
+  </div>
+  <dc-import name="NowPlayingDevice" mode="{{ deviceMode }}" source="YouTube Music" title="{{ track.title }}" artist="{{ track.artist }}" album="{{ track.album }}" favorite="{{ favorite }}" position="{{ position }}" duration="{{ track.duration }}" interactive="{{ true }}" on-toggle="{{ onToggle }}" on-prev="{{ onPrev }}" on-next="{{ onNext }}" on-like="{{ onLike }}" on-dislike="{{ onDislike }}" on-seek="{{ onSeek }}" hint-size="500px,500px"></dc-import>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;width:500px;">
+    <sc-for list="{{ views }}" as="v" hint-placeholder-count="6">
+      <sc-if value="{{ v.active }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ v.onClick }}" style="padding:9px 15px;border-radius:999px;border:none;cursor:pointer;font-family:Inter,sans-serif;font-size:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,#A855F7,#EC4899);box-shadow:0 6px 16px rgba(168,85,247,.34);">{{ v.label }}</button>
+      </sc-if>
+      <sc-if value="{{ v.notActive }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ v.onClick }}" style="padding:9px 15px;border-radius:999px;border:1px solid #ECE2D8;cursor:pointer;font-family:Inter,sans-serif;font-size:12px;font-weight:700;color:#4A3F37;background:#FFFFFF;">{{ v.label }}</button>
+      </sc-if>
+    </sc-for>
+  </div>
+</div>
+
+<div data-screen-label="State: Playing" style="position:absolute;left:720px;top:60px;width:500px;font-family:Inter,sans-serif;">
+  <div data-drags-parent="1" style="font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#8A7A6E;margin-bottom:14px;">Playing</div>
+  <dc-import name="NowPlayingDevice" mode="playing" source="YouTube Music" title="Midnight Drive" artist="The Reverb Club" album="Neon Nights · Album" favorite="{{ true }}" position="72" duration="228" interactive="{{ false }}" hint-size="500px,500px"></dc-import>
+</div>
+
+<div data-screen-label="State: Paused" style="position:absolute;left:1300px;top:60px;width:500px;font-family:Inter,sans-serif;">
+  <div data-drags-parent="1" style="font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#8A7A6E;margin-bottom:14px;">Paused</div>
+  <dc-import name="NowPlayingDevice" mode="paused" source="YouTube Music" title="Midnight Drive" artist="The Reverb Club" album="Neon Nights · Album" favorite="{{ true }}" position="72" duration="228" interactive="{{ false }}" hint-size="500px,500px"></dc-import>
+</div>
+
+<div data-screen-label="State: Buffering" style="position:absolute;left:1880px;top:60px;width:500px;font-family:Inter,sans-serif;">
+  <div data-drags-parent="1" style="font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#8A7A6E;margin-bottom:14px;">Buffering</div>
+  <dc-import name="NowPlayingDevice" mode="buffering" source="YouTube Music" title="Midnight Drive" artist="The Reverb Club" album="Neon Nights · Album" favorite="{{ false }}" position="41" duration="228" interactive="{{ false }}" hint-size="500px,500px"></dc-import>
+</div>
+
+<div data-screen-label="State: Nothing playing" style="position:absolute;left:720px;top:680px;width:500px;font-family:Inter,sans-serif;">
+  <div data-drags-parent="1" style="font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#8A7A6E;margin-bottom:14px;">Nothing playing</div>
+  <dc-import name="NowPlayingDevice" mode="empty" source="YouTube Music" favorite="{{ false }}" position="0" duration="0" interactive="{{ false }}" hint-size="500px,500px"></dc-import>
+</div>
+
+<div data-screen-label="State: Advertisement" style="position:absolute;left:1300px;top:680px;width:500px;font-family:Inter,sans-serif;">
+  <div data-drags-parent="1" style="font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#8A7A6E;margin-bottom:14px;">Advertisement</div>
+  <dc-import name="NowPlayingDevice" mode="ad" source="YouTube Music" favorite="{{ false }}" position="9" duration="30" interactive="{{ false }}" hint-size="500px,500px"></dc-import>
+</div>
+
+<div data-screen-label="State: Disconnected" style="position:absolute;left:1880px;top:680px;width:500px;font-family:Inter,sans-serif;">
+  <div data-drags-parent="1" style="font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#8A7A6E;margin-bottom:14px;">Disconnected</div>
+  <dc-import name="NowPlayingDevice" mode="disconnected" source="YouTube Music" title="Midnight Drive" artist="The Reverb Club" album="Neon Nights · Album" favorite="{{ true }}" position="72" duration="228" interactive="{{ false }}" hint-size="500px,500px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.tracks = [
+      { title: 'Midnight Drive', artist: 'The Reverb Club', album: 'Neon Nights · Album', duration: 228 },
+      { title: 'Slow Tides', artist: 'Marlowe Gray', album: 'Coastlines · Single', duration: 194 },
+      { title: 'Paper Lanterns', artist: 'Yumi & the Hours', album: 'Field Notes · Album', duration: 251 },
+    ];
+  }
+  state = { idx: 0, position: 72, favorite: true, view: 'playing' };
+  componentDidMount() {
+    this._t = setInterval(() => {
+      if (this.state.view !== 'playing') return;
+      this.setState((s) => {
+        const dur = this.tracks[s.idx].duration;
+        if (s.position + 1 >= dur) return { idx: (s.idx + 1) % this.tracks.length, position: 0 };
+        return { position: s.position + 1 };
+      });
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+  renderVals() {
+    const track = this.tracks[this.state.idx];
+    const view = this.state.view;
+    const mk = (id, label) => ({ id, label, active: view === id, notActive: view !== id, onClick: () => this.setState({ view: id }) });
+    return {
+      track, position: this.state.position, favorite: this.state.favorite, deviceMode: view,
+      onToggle: () => this.setState((s) => ({ view: s.view === 'playing' ? 'paused' : (s.view === 'paused' ? 'playing' : s.view) })),
+      onPrev: () => this.setState((s) => ({ idx: (s.idx - 1 + this.tracks.length) % this.tracks.length, position: 0 })),
+      onNext: () => this.setState((s) => ({ idx: (s.idx + 1) % this.tracks.length, position: 0 })),
+      onLike: () => this.setState((s) => ({ favorite: !s.favorite })),
+      onDislike: () => {},
+      onSeek: (frac) => this.setState({ position: Math.round(frac * track.duration) }),
+      views: [mk('playing', 'Playing'), mk('paused', 'Paused'), mk('buffering', 'Buffering'), mk('empty', 'Nothing playing'), mk('ad', 'Advertisement'), mk('disconnected', 'Disconnected')],
+    };
+  }
+}
+</script>
+</body>
+</html>

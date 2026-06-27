@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sim",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cmake --build build && ./build/ytm_sim"],
+      "cwd": "sim",
+      "port": null
+    },
+    {
+      "name": "design-preview",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8080"],
+      "cwd": "design/now-playing-screen-design/project",
+      "port": 8080
+    },
+    {
+      "name": "firmware",
+      "runtimeExecutable": "idf.py",
+      "runtimeArgs": ["-p", "/dev/tty.usbmodem*", "flash", "monitor"],
+      "cwd": "firmware",
+      "port": null
+    }
+  ]
+}

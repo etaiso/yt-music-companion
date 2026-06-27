@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Build output
+build/
+sim/build/
+firmware/build/
+
+# ESP-IDF
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+
+# Editor
+*.swp
