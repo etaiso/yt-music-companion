@@ -4,6 +4,10 @@ A hardware companion device for **YouTube Music**. A Waveshare
 ESP32-S3-Touch-AMOLED-2.16 board acts as a polished physical UI client — showing the
 current track and sending commands (play/pause/skip/like/seek/volume).
 
+<p align="center">
+  <img src="docs/assets/now-playing.png" alt="Now Playing screen" width="360">
+</p>
+
 Audio playback runs on the Mac via the **ytmdesktop** app. A small Mac-side bridge
 normalizes ytmdesktop's state into the board's view-model and serves it over Wi-Fi.
 No audio, decoding, TLS, or auth runs on the board itself.
