@@ -1,0 +1,6 @@
+## Managed component dependencies (pulled by the ESP-IDF component manager).
+## The Waveshare BSP brings up the CO5300 QSPI panel + CST9220 touch + LVGL v9
+## for THIS exact board, and re-exports lvgl.h transitively.
+dependencies:
+  idf: ">=5.5"
+  waveshare/esp32_s3_touch_amoled_2_16: "^1.0.0"

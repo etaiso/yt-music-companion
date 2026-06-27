@@ -1,0 +1,6 @@
+# big-APP scheme for 16MB flash (room for Wi-Fi/TLS/LVGL later)
+# Name,     Type, SubType, Offset,   Size
+nvs,        data, nvs,     ,         0x6000
+phy_init,   data, phy,     ,         0x1000
+factory,    app,  factory, ,         0x300000
+storage,    data, spiffs,  ,         0x100000
