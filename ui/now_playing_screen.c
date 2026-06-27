@@ -41,7 +41,8 @@ static void emit(const char *cmd, int arg) { if (s_emit) s_emit(cmd, arg); }
 static void fmt_time(char *buf, size_t n, int32_t sec)
 {
     if (sec < 0) sec = 0;
-    snprintf(buf, n, "%d:%02d", sec / 60, sec % 60);
+    // int32_t is `long` on the xtensa toolchain; cast so %d matches under -Werror=format.
+    snprintf(buf, n, "%d:%02d", (int)(sec / 60), (int)(sec % 60));
 }
 
 // ---- events ----

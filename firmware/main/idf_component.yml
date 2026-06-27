@@ -6,5 +6,5 @@ dependencies:
   waveshare/esp32_s3_touch_amoled_2_16: "^1.0.0"
   ## Live feed (net_backend.c): WebSocket client to the bridge + mDNS discovery.
   ## esp_wifi/json/nvs_flash/esp_netif/esp_event are built-in IDF components.
-  espressif/esp_websocket_client: "^1.2.0"
+  espressif/esp_websocket_client: "~1.1.0"  # 1.2.x needs a newer tcp_transport than IDF 5.5 ships
   espressif/mdns: "^1.2.0"
