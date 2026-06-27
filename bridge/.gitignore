@@ -1,0 +1,4 @@
+node_modules/
+*.log
+# token is persisted under ~/.ytmboard by default, but ignore any stray local copy
+token.json
