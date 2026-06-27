@@ -1,0 +1,42 @@
+menu "YT Music board"
+
+config YTM_USE_NET
+    bool "Use the live network feed (bridge) instead of mock data"
+    default y
+    help
+        When set, the board connects to the Mac-side ytmdesktop bridge over
+        WebSocket (discovered via mDNS) and fills the view-model from it.
+        When unset, the firmware drives the screen from mock.c — useful for an
+        offline demo on hardware. The desktop simulator always uses mock.
+
+config YTM_WIFI_SSID
+    string "WiFi SSID"
+    default "changeme"
+    depends on YTM_USE_NET
+    help
+        SSID of the network the bridge (Mac) is on.
+
+config YTM_WIFI_PASSWORD
+    string "WiFi password"
+    default "changeme"
+    depends on YTM_USE_NET
+    help
+        WPA2 passphrase. Leave empty for an open network.
+
+config YTM_BRIDGE_HOST
+    string "Bridge host fallback (optional)"
+    default ""
+    depends on YTM_USE_NET
+    help
+        If set, skip mDNS and connect straight to this host (e.g. "192.168.1.50").
+        Leave empty to discover the bridge via _ytmboard._tcp.
+
+config YTM_BRIDGE_PORT
+    int "Bridge port fallback"
+    default 8765
+    depends on YTM_USE_NET
+    help
+        Port used with the host fallback above, and as a default if the mDNS TXT
+        record omits one.
+
+endmenu

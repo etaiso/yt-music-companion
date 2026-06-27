@@ -213,15 +213,42 @@ port via `bonjour-service`, TXT `proto=ws`/`path=/`/`v=1`, with goodbye on shutd
 Verified by publish + self-browse (resolves name, port 8765, TXT). The board browses
 this type and connects to the advertised host:port — no hard-coded IP.
 
-**Bridge (deliverable #2) is now feature-complete per SPEC §4.** Remaining work is on
-the board side:
+**Bridge (deliverable #2) is now feature-complete per SPEC §4.**
 
-### Remaining — wire the board to the bridge
-- Replace the mock feed with a WS client that browses `_ytmboard._tcp`, connects, and
-  fills `now_playing_vm_t` from the `{type:"state",data}` frames.
-- Decode the cover binary frame (`"YC"` header → RGB565) into the cover slot
-  `lv_image_dsc_t`; pair to `track_id`.
-- Connect the screen's `emit(...)` transport stubs to the `{cmd,arg}` protocol.
+## DONE — board wired to the bridge (firmware)
+
+**Deliverable #2 board side is built.** Device-only net backend fills the view-model
+from the bridge; the portable `ui/` stays network-free.
+
+```
+firmware/main/
+  net_backend.{h,c}   WiFi(STA) -> mDNS browse _ytmboard._tcp -> esp_websocket_client
+                      -> parse {type:state,data} (cJSON) + cover "YC" binary -> RGB565
+                      double-buffered cover; mutex-guarded snapshot; emit {cmd,arg}
+  Kconfig.projbuild   CONFIG_YTM_USE_NET (default y) + WiFi SSID/pass + host/port fallback
+  main.c              compile-time switch: net feed vs mock (sim always mock)
+  CMakeLists.txt      +net_backend.c, +REQUIRES (esp_websocket_client mdns json wifi ...)
+  idf_component.yml   +espressif/esp_websocket_client, +espressif/mdns
+```
+
+**Decisions taken:** compile-time `CONFIG_YTM_USE_NET` switch; WiFi creds via
+menuconfig/Kconfig; `esp_websocket_client`.
+
+**Verified:** `net_backend.h` compiles standalone (gcc `-fsyntax-only`); `.c` is
+review-checked only — **this sandbox has no ESP-IDF toolchain**, so it is NOT compiled
+or hardware-run. Build/flash on a real Mac+board:
+```bash
+cd firmware && idf.py menuconfig   # YT Music board -> set WiFi SSID/pass
+idf.py build flash monitor
+```
+Set `CONFIG_YTM_USE_NET=n` for the offline mock demo on hardware.
+
+### Open / to verify on hardware
+- cover byte order: bridge sends RGB565 LE; if the panel shows swapped colors, the
+  BSP's color-swap setting (or `LV_COLOR_16_SWAP`) is the lever, not the frame.
+- WS frame reassembly across fragments (cover ~28 KB) — exercised only on device.
+- mDNS `mdns_result_t` addr/port field access — confirm against the installed
+  `espressif/mdns` version.
 
 ## Then — remaining sequenced deliverables
 

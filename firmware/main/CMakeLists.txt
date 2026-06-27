@@ -3,6 +3,7 @@ set(UI_DIR ${CMAKE_CURRENT_LIST_DIR}/../../ui)
 
 idf_component_register(
     SRCS "main.c"
+         "net_backend.c"
          "${UI_DIR}/now_playing_screen.c"
          "${UI_DIR}/ring_visualizer.c"
          "${UI_DIR}/mock.c"
@@ -10,4 +11,5 @@ idf_component_register(
          "${UI_DIR}/mdi_line.c"
     INCLUDE_DIRS "." "${UI_DIR}"
     REQUIRES esp32_s3_touch_amoled_2_16
+             esp_websocket_client esp_wifi mdns json nvs_flash esp_netif esp_event
 )
