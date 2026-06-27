@@ -8,6 +8,7 @@
 import { BoardServer } from "./board-server.js";
 import { VOLUME_STEP } from "./config.js";
 import { renderCover } from "./cover.js";
+import { Discovery } from "./discovery.js";
 import { normalize } from "./normalize.js";
 import { YtmdClient } from "./ytmd.js";
 
@@ -105,11 +106,15 @@ async function main() {
     },
   });
 
+  const discovery = new Discovery();
+
   board.start();
+  discovery.start();
   await ytmd.start();
 
   const shutdown = () => {
     console.log("\nShutting down...");
+    discovery.stop();
     ytmd.stop();
     board.stop();
     process.exit(0);

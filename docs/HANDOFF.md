@@ -208,11 +208,20 @@ and replays it to late joiners; `index` re-renders only when the art URL changes
 skips ads. `normalize` adds `track_id` so the board pairs a cover to its track. Smoke
 tests cover the encode (header, dims, red→0xF800, failure→null) and binary WS delivery.
 
-### Remaining for deliverable #2
-- **mDNS discovery** (§4.6): advertise `_ytmboard._tcp` so the board finds the Mac.
-- **Wire the board**: replace the mock feed, point the board WS client at the bridge
-  (`:8765`), connect the `emit(...)` stubs to the `{cmd,arg}` protocol, decode the
-  cover binary frame into the cover slot.
+**mDNS pass DONE** (§4.6): `src/discovery.js` advertises `_ytmboard._tcp` on the board
+port via `bonjour-service`, TXT `proto=ws`/`path=/`/`v=1`, with goodbye on shutdown.
+Verified by publish + self-browse (resolves name, port 8765, TXT). The board browses
+this type and connects to the advertised host:port — no hard-coded IP.
+
+**Bridge (deliverable #2) is now feature-complete per SPEC §4.** Remaining work is on
+the board side:
+
+### Remaining — wire the board to the bridge
+- Replace the mock feed with a WS client that browses `_ytmboard._tcp`, connects, and
+  fills `now_playing_vm_t` from the `{type:"state",data}` frames.
+- Decode the cover binary frame (`"YC"` header → RGB565) into the cover slot
+  `lv_image_dsc_t`; pair to `track_id`.
+- Connect the screen's `emit(...)` transport stubs to the `{cmd,arg}` protocol.
 
 ## Then — remaining sequenced deliverables
 

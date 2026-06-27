@@ -38,9 +38,8 @@ Force a fresh handshake (e.g. token revoked) with `npm run auth`.
 - **Cover art** — fetch the best thumbnail, square-crop to `COVER_PX`, encode RGB565,
   push as a binary frame keyed to the current track (re-rendered only when the art
   URL changes).
-
-**Deferred to a later pass** (SPEC §4.6): mDNS discovery. Until then the board uses a
-configured bridge address.
+- **Discovery** — advertise `_ytmboard._tcp` over mDNS on the board port (TXT:
+  `proto=ws`, `path=/`, `v=1`) so the board finds the Mac without a hard-coded IP.
 
 ## Board protocol (text JSON over WebSocket)
 
