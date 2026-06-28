@@ -244,13 +244,17 @@ static void ws_event(void *arg, esp_event_base_t base, int32_t id, void *data)
         // Control frames (ping/pong) carry no app payload.
         if (e->op_code == 0x9 || e->op_code == 0xA) break;
 
-        // Reassemble fragments: a new message (op 1/2) resets the buffer;
-        // continuation (op 0) appends to it.
-        if (e->op_code == 0x1 || e->op_code == 0x2) {
+        // Reassemble. esp_websocket_client splits a frame larger than its rx
+        // buffer into several DATA events that KEEP the same op_code (1/2) and
+        // only advance payload_offset. So the start of a message is marked by
+        // payload_offset == 0, NOT by the op_code. The old code reset the buffer
+        // on every 0x1/0x2 event, which wiped it on each chunk of a big frame and
+        // left parse_cover only the final chunk (no "YC" header -> dropped). That
+        // is why small text frames worked but the ~28KB cover never displayed.
+        if (e->payload_offset == 0) {
             s_rx_op = e->op_code;
             s_rx_len = 0;
         }
-        if (e->payload_offset == 0 && e->op_code != 0x0) s_rx_len = 0;
 
         if (s_rx_len + e->data_len <= RX_MAX) {
             memcpy(s_rx + s_rx_len, e->data_ptr, e->data_len);
