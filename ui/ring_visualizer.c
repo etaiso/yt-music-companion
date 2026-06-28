@@ -83,8 +83,21 @@ void ring_viz_update(ring_viz_t *rv, float level, bool reduce_motion)
     (void)rv;
     s_phase++;
 
-    if (reduce_motion)
+    if (reduce_motion) {
+        // accessibility: minimal slow breathing instead of energy-reactive motion
         level = 0.15f + 0.05f * sinf((float)s_phase * 0.05f);
+    } else if (level < 0.02f) {
+        // No real audio energy from the feed: ytmdesktop exposes none, so the live
+        // bridge always sends level 0 and the rings would sit still. Fall back to a
+        // synthesized "breathing" pulse — same two-detuned-sines + slow envelope as
+        // the mock (mock.c synth_level), retuned from per-second to the ~30fps
+        // per-frame call rate. Paused/idle pass level >= 0.06, so they stay calm.
+        float t   = (float)s_phase;
+        float a   = 0.5f + 0.5f * sinf(t * 0.21f);
+        float b   = 0.5f + 0.5f * sinf(t * 0.39f + 1.3f);
+        float env = 0.55f + 0.45f * sinf(t * 0.027f);
+        level = (0.6f * a + 0.4f * b) * env;
+    }
     if (level < 0.0f) level = 0.0f;
     if (level > 1.0f) level = 1.0f;
 

@@ -47,6 +47,9 @@ void app_main(void)
 {
     bsp_display_start();          // panel + touch + LVGL up
     bsp_display_backlight_on();
+    // AMOLED has no PWM backlight; this sends the panel's brightness command.
+    // Tunable via menuconfig (YT Music board -> Display brightness). 100% is harsh.
+    bsp_display_brightness_set(CONFIG_YTM_DISPLAY_BRIGHTNESS);
 
 #if CONFIG_YTM_USE_NET
     net_backend_start();          // WiFi + mDNS + WebSocket (async)

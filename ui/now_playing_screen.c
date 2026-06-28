@@ -195,7 +195,11 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
 
     s_title = lv_label_create(meta);
     lv_obj_set_width(s_title, 340);
-    lv_label_set_long_mode(s_title, LV_LABEL_LONG_DOT);
+    // Single-line marquee: LV_LABEL_LONG_DOT only ellipsizes when the label's
+    // HEIGHT is constrained; with auto height it wraps long titles onto a 2nd
+    // line that grows out of the fixed-height meta box into the progress row.
+    // SCROLL_CIRCULAR keeps the title to one line (scrolls if it overflows 340).
+    lv_label_set_long_mode(s_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_set_style_text_align(s_title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(s_title, FONT_TITLE, 0);
     lv_obj_set_style_text_color(s_title, COL_INK, 0);
