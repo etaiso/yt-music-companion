@@ -9,6 +9,16 @@ config YTM_USE_NET
         When unset, the firmware drives the screen from mock.c — useful for an
         offline demo on hardware. The desktop simulator always uses mock.
 
+config YTM_DISPLAY_BRIGHTNESS
+    int "Display brightness (percent)"
+    range 5 100
+    default 40
+    help
+        AMOLED panel brightness, 5-100%. The screen comes up at this level on
+        boot; lower it if the display is too bright (full brightness is harsh).
+        Applied via the BSP after panel init — AMOLED dims with a panel command,
+        there is no separate backlight to PWM.
+
 config YTM_WIFI_SSID
     string "WiFi SSID"
     default "changeme"
