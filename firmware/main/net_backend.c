@@ -104,15 +104,23 @@ static bool resolve_bridge_url(char *url, size_t url_len)
 
     int port = results->port ? results->port : CONFIG_YTM_BRIDGE_PORT;
     bool ok = false;
-    if (results->addr) {
-        char ip[46];
-        esp_ip4addr_ntoa(&results->addr->addr.u_addr.ip4, ip, sizeof(ip));
-        snprintf(url, url_len, "ws://%s:%d/", ip, port);
-        ok = true;
-    } else if (results->hostname) {
+    // The address list can hold both IPv6 (fe80 link-local) and IPv4 entries;
+    // we need the IPv4 one. Reading an IPv6 addr as .u_addr.ip4 yields garbage
+    // (e.g. fe80:: -> 254.128.0.0), so walk the list for an AF_INET address.
+    for (mdns_ip_addr_t *a = results->addr; a; a = a->next) {
+        if (a->addr.type == ESP_IPADDR_TYPE_V4) {
+            char ip[16];
+            esp_ip4addr_ntoa(&a->addr.u_addr.ip4, ip, sizeof(ip));
+            snprintf(url, url_len, "ws://%s:%d/", ip, port);
+            ok = true;
+            break;
+        }
+    }
+    if (!ok && results->hostname) {
         snprintf(url, url_len, "ws://%s:%d/", results->hostname, port);
         ok = true;
     }
+    if (!ok) ESP_LOGE(TAG, "mDNS result had no IPv4 address");
     mdns_query_results_free(results);
     return ok;
 }
