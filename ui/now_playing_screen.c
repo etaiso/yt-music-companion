@@ -1,5 +1,5 @@
-// now_playing_screen.c — LVGL recreation of the Claude Design "Now Playing"
-// (design/now-playing-screen-design/project/NowPlayingDevice.dc.html).
+// now_playing_screen.c — LVGL recreation of the Claude Design "Now Playing" V2
+// (design/now-playing-screen-design/project/NowPlayingDeviceV2.dc.html).
 //
 // Render layer reads ONLY now_playing_vm_t. No network code; controls emit().
 #include "now_playing_screen.h"
@@ -19,7 +19,7 @@ static lv_obj_t  *s_state_dot;     // status bar right: colored dot
 static lv_obj_t  *s_state_label;   // status bar right: text
 static ring_viz_t s_ring;
 static ambient_glow_t s_glow;     // album-derived ambient layer (Dark only)
-static lv_obj_t  *s_cover_cap;     // "COVER" caption (placeholder)
+static lv_obj_t  *s_cover_glyph;   // music_note glyph for ad/empty neutral block
 static lv_obj_t  *s_cover_img;     // real art (hidden until provided)
 static lv_obj_t  *s_title;
 static lv_obj_t  *s_artist;
@@ -31,8 +31,7 @@ static lv_obj_t  *s_total;
 static lv_obj_t  *s_slider;
 static lv_obj_t  *s_play_label;
 static lv_obj_t  *s_like_label;
-static lv_obj_t  *s_scrim;         // dim overlay for ad / disconnected
-static lv_obj_t  *s_banner;        // disconnected banner
+static lv_obj_t  *s_banner;        // glassy disconnected banner
 
 static bool       s_user_seeking;
 static uint32_t   s_pulse;         // status-dot pulse counter
@@ -118,10 +117,10 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     s_screen = parent;
     lv_obj_set_style_bg_color(s_screen, COL_BG, 0);
     lv_obj_set_style_bg_opa(s_screen, LV_OPA_COVER, 0);
-    lv_obj_set_style_pad_top(s_screen, 22, 0);
-    lv_obj_set_style_pad_left(s_screen, 24, 0);
-    lv_obj_set_style_pad_right(s_screen, 24, 0);
-    lv_obj_set_style_pad_bottom(s_screen, 18, 0);
+    lv_obj_set_style_pad_top(s_screen, 24, 0);
+    lv_obj_set_style_pad_left(s_screen, 28, 0);
+    lv_obj_set_style_pad_right(s_screen, 28, 0);
+    lv_obj_set_style_pad_bottom(s_screen, 22, 0);
     lv_obj_set_style_pad_row(s_screen, 0, 0);
     lv_obj_clear_flag(s_screen, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(s_screen, LV_FLEX_FLOW_COLUMN);
@@ -138,7 +137,7 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_t *bar = lv_obj_create(s_screen);
     lv_obj_remove_style_all(bar);
     lv_obj_set_width(bar, lv_pct(100));
-    lv_obj_set_height(bar, 18);
+    lv_obj_set_height(bar, 20);
     lv_obj_set_flex_flow(bar, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(bar, LV_FLEX_ALIGN_SPACE_BETWEEN,
                           LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -162,14 +161,14 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
 
     s_state_dot = lv_obj_create(st);
     lv_obj_remove_style_all(s_state_dot);
-    lv_obj_set_size(s_state_dot, 7, 7);
+    lv_obj_set_size(s_state_dot, 8, 8);
     lv_obj_set_style_radius(s_state_dot, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(s_state_dot, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(s_state_dot, COL_PURPLE, 0);
+    lv_obj_set_style_bg_color(s_state_dot, COL_PINK, 0);
 
     s_state_label = lv_label_create(st);
     lv_obj_set_style_text_font(s_state_label, FONT_LABEL, 0);
-    lv_obj_set_style_text_color(s_state_label, COL_PURPLE, 0);
+    lv_obj_set_style_text_color(s_state_label, COL_PINK, 0);
     lv_obj_set_style_text_letter_space(s_state_label, 1, 0);
     lv_label_set_text(s_state_label, "PLAYING");
 
@@ -190,18 +189,17 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     // cy ~188 of 480), leaving room for the title block below.
     lv_obj_align(s_ring.cont, LV_ALIGN_CENTER, 0, -30);
 
-    // striped placeholder fill (design uses 45deg stripes; solid approx + caption)
+    // Default cover fill (a neutral block sits behind real art until it loads).
     lv_obj_set_style_bg_opa(s_ring.cover_slot, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(s_ring.cover_slot, COL_STRIPE, 0);
-    lv_obj_set_style_border_color(s_ring.cover_slot, COL_LINE, 0);
-    lv_obj_set_style_border_width(s_ring.cover_slot, 1, 0);
 
-    s_cover_cap = lv_label_create(s_ring.cover_slot);
-    lv_label_set_text(s_cover_cap, "COVER");
-    lv_obj_set_style_text_font(s_cover_cap, FONT_LABEL, 0);
-    lv_obj_set_style_text_color(s_cover_cap, COL_INK4, 0);
-    lv_obj_set_style_text_letter_space(s_cover_cap, 2, 0);
-    lv_obj_center(s_cover_cap);
+    // music_note glyph centered in the neutral block (ad / empty states only).
+    s_cover_glyph = lv_label_create(s_ring.cover_slot);
+    lv_label_set_text(s_cover_glyph, IC_MUSIC);
+    lv_obj_set_style_text_font(s_cover_glyph, FONT_ICONS, 0);
+    lv_obj_set_style_text_color(s_cover_glyph, COL_INK4, 0);
+    lv_obj_center(s_cover_glyph);
+    lv_obj_add_flag(s_cover_glyph, LV_OBJ_FLAG_HIDDEN);
 
     s_cover_img = lv_image_create(s_ring.cover_slot);
     lv_obj_center(s_cover_img);
@@ -211,31 +209,31 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_t *meta = lv_obj_create(s_screen);
     lv_obj_remove_style_all(meta);
     lv_obj_set_width(meta, lv_pct(100));
-    lv_obj_set_height(meta, 72);
+    lv_obj_set_height(meta, 84);
     lv_obj_set_flex_flow(meta, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(meta, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(meta, 5, 0);
+    lv_obj_set_style_pad_row(meta, 6, 0);
     lv_obj_clear_flag(meta, LV_OBJ_FLAG_SCROLLABLE);
 
     s_shim1 = lv_obj_create(meta);
     lv_obj_remove_style_all(s_shim1);
-    lv_obj_set_size(s_shim1, 170, 22);
-    lv_obj_set_style_radius(s_shim1, 7, 0);
+    lv_obj_set_size(s_shim1, 200, 26);
+    lv_obj_set_style_radius(s_shim1, 8, 0);
     lv_obj_set_style_bg_opa(s_shim1, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(s_shim1, COL_LINE, 0);
     lv_obj_add_flag(s_shim1, LV_OBJ_FLAG_HIDDEN);
 
     s_shim2 = lv_obj_create(meta);
     lv_obj_remove_style_all(s_shim2);
-    lv_obj_set_size(s_shim2, 110, 14);
-    lv_obj_set_style_radius(s_shim2, 6, 0);
+    lv_obj_set_size(s_shim2, 130, 16);
+    lv_obj_set_style_radius(s_shim2, 7, 0);
     lv_obj_set_style_bg_opa(s_shim2, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(s_shim2, COL_LINE, 0);
     lv_obj_add_flag(s_shim2, LV_OBJ_FLAG_HIDDEN);
 
     s_title = lv_label_create(meta);
-    lv_obj_set_width(s_title, 340);
+    lv_obj_set_width(s_title, 360);
     // Single-line marquee: LV_LABEL_LONG_DOT only ellipsizes when the label's
     // HEIGHT is constrained; with auto height it wraps long titles onto a 2nd
     // line that grows out of the fixed-height meta box into the progress row.
@@ -247,11 +245,17 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_label_set_text(s_title, "Midnight Drive");
 
     s_artist = lv_label_create(meta);
+    lv_obj_set_width(s_artist, 340);
+    lv_label_set_long_mode(s_artist, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_align(s_artist, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(s_artist, FONT_BODY, 0);
     lv_obj_set_style_text_color(s_artist, COL_INK2, 0);
     lv_label_set_text(s_artist, "The Reverb Club");
 
     s_album = lv_label_create(meta);
+    lv_obj_set_width(s_album, 340);
+    lv_label_set_long_mode(s_album, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_align(s_album, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(s_album, FONT_META, 0);
     lv_obj_set_style_text_color(s_album, COL_INK3, 0);
     lv_label_set_text(s_album, "Neon Nights - Album");
@@ -261,35 +265,41 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_remove_style_all(s_prog_row);
     lv_obj_set_width(s_prog_row, lv_pct(100));
     lv_obj_set_height(s_prog_row, LV_SIZE_CONTENT);
-    lv_obj_set_style_pad_top(s_prog_row, 6, 0);
+    lv_obj_set_style_pad_top(s_prog_row, 8, 0);
     lv_obj_set_flex_flow(s_prog_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(s_prog_row, LV_FLEX_ALIGN_SPACE_BETWEEN,
                           LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(s_prog_row, 10, 0);
+    lv_obj_set_style_pad_column(s_prog_row, 12, 0);
     lv_obj_clear_flag(s_prog_row, LV_OBJ_FLAG_SCROLLABLE);
 
     s_elapsed = lv_label_create(s_prog_row);
+    lv_obj_set_width(s_elapsed, 34);
+    lv_obj_set_style_text_align(s_elapsed, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_set_style_text_font(s_elapsed, FONT_TIME, 0);
     lv_obj_set_style_text_color(s_elapsed, COL_INK3, 0);
     lv_label_set_text(s_elapsed, "1:12");
 
     s_slider = lv_slider_create(s_prog_row);
     lv_obj_set_flex_grow(s_slider, 1);
-    lv_obj_set_height(s_slider, 6);
+    lv_obj_set_height(s_slider, 7);
+    // knobless white bar: track rgba(255,255,255,.18)≈COL_LINE, white fill.
     lv_obj_set_style_bg_color(s_slider, COL_LINE, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_slider, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_radius(s_slider, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-    // gradient fill (indigo -> pink), matching the design bar
-    lv_obj_set_style_bg_color(s_slider, COL_INDIGO, LV_PART_INDICATOR);
-    lv_obj_set_style_bg_grad_color(s_slider, COL_PINK, LV_PART_INDICATOR);
-    lv_obj_set_style_bg_grad_dir(s_slider, LV_GRAD_DIR_HOR, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(s_slider, COL_INK, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(s_slider, LV_OPA_COVER, LV_PART_INDICATOR);
     lv_obj_set_style_radius(s_slider, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
-    // knobless look (design has no knob), but still drag-to-seek
+    // knobless look (design has no knob), but still drag-to-seek. A generous
+    // vertical touch area keeps the thin 7px bar easy to grab.
     lv_obj_set_style_bg_opa(s_slider, LV_OPA_TRANSP, LV_PART_KNOB);
     lv_obj_set_style_pad_all(s_slider, 0, LV_PART_KNOB);
+    lv_obj_set_ext_click_area(s_slider, 7);
     lv_obj_add_event_cb(s_slider, on_slider, LV_EVENT_PRESSED, NULL);
     lv_obj_add_event_cb(s_slider, on_slider, LV_EVENT_RELEASED, NULL);
 
     s_total = lv_label_create(s_prog_row);
+    lv_obj_set_width(s_total, 34);
+    lv_obj_set_style_text_align(s_total, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_set_style_text_font(s_total, FONT_TIME, 0);
     lv_obj_set_style_text_color(s_total, COL_INK3, 0);
     lv_label_set_text(s_total, "3:48");
@@ -299,7 +309,7 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_remove_style_all(tr);
     lv_obj_set_width(tr, lv_pct(100));
     lv_obj_set_height(tr, LV_SIZE_CONTENT);
-    lv_obj_set_style_pad_top(tr, 14, 0);
+    lv_obj_set_style_pad_top(tr, 16, 0);
     lv_obj_set_flex_flow(tr, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(tr, LV_FLEX_ALIGN_SPACE_BETWEEN,
                           LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -307,57 +317,66 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
 
     // Transport glyphs use the bundled Material Symbols fonts (scripts/gen_icons.sh).
     // dislike: outline (mdi_line); like: toggles solid/outline on favorite (see update).
-    icon_btn(tr, IC_DISLIKE, 48, FONT_ICONS_LINE, COL_INK3, on_dislike, NULL);
-    icon_btn(tr, IC_PREV, 48, FONT_ICONS, COL_INK, on_prev, NULL);
+    icon_btn(tr, IC_DISLIKE, 56, FONT_ICONS_LINE, COL_INK3, on_dislike, NULL);
+    icon_btn(tr, IC_PREV, 56, FONT_ICONS, COL_INK, on_prev, NULL);
 
+    // V2 primary action: 80px white button with a dark glyph (COL_INK fill,
+    // COL_BG glyph — inverts cleanly to a dark button in the Light theme).
     lv_obj_t *play = lv_button_create(tr);
     lv_obj_remove_style_all(play);
-    lv_obj_set_size(play, 66, 66);
+    lv_obj_set_size(play, 80, 80);
     lv_obj_set_style_radius(play, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(play, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(play, COL_PURPLE, 0);
-    lv_obj_set_style_bg_grad_color(play, COL_PINK, 0);
-    lv_obj_set_style_bg_grad_dir(play, LV_GRAD_DIR_HOR, 0);
+    lv_obj_set_style_bg_color(play, COL_INK, 0);
+    lv_obj_set_style_shadow_color(play, COL_SHADOW, 0);
+    lv_obj_set_style_shadow_opa(play, LV_OPA_40, 0);
+    lv_obj_set_style_shadow_width(play, 30, 0);
+    lv_obj_set_style_shadow_offset_y(play, 12, 0);
     lv_obj_add_event_cb(play, on_play, LV_EVENT_CLICKED, NULL);
     s_play_label = lv_label_create(play);
     lv_label_set_text(s_play_label, IC_PAUSE);
     lv_obj_set_style_text_font(s_play_label, FONT_ICONS, 0);
-    lv_obj_set_style_text_color(s_play_label, COL_ON_ACCENT, 0);
+    lv_obj_set_style_text_color(s_play_label, COL_BG, 0);
     lv_obj_center(s_play_label);
 
-    icon_btn(tr, IC_NEXT, 48, FONT_ICONS, COL_INK, on_next, NULL);
-    icon_btn(tr, IC_LIKE, 48, FONT_ICONS_LINE, COL_INK3, on_like, &s_like_label);
+    icon_btn(tr, IC_NEXT, 56, FONT_ICONS, COL_INK, on_next, NULL);
+    icon_btn(tr, IC_LIKE, 56, FONT_ICONS_LINE, COL_INK3, on_like, &s_like_label);
 
-    // ---- overlays: dim scrim + disconnected banner ----
-    s_scrim = lv_obj_create(s_screen);
-    lv_obj_remove_style_all(s_scrim);
-    lv_obj_set_size(s_scrim, lv_pct(100), lv_pct(100));
-    lv_obj_align(s_scrim, LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_obj_set_style_bg_color(s_scrim, COL_BG, 0);
-    lv_obj_set_style_bg_opa(s_scrim, LV_OPA_50, 0);
-    lv_obj_add_flag(s_scrim, LV_OBJ_FLAG_IGNORE_LAYOUT);
-    lv_obj_clear_flag(s_scrim, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(s_scrim, LV_OBJ_FLAG_HIDDEN);
-
+    // ---- disconnected banner (glassy panel; LVGL has no backdrop blur, so an
+    //      opaque dark rounded panel approximates it) ----
     s_banner = lv_obj_create(s_screen);
     lv_obj_remove_style_all(s_banner);
-    lv_obj_set_width(s_banner, 444);
+    lv_obj_set_width(s_banner, 440);
     lv_obj_set_height(s_banner, LV_SIZE_CONTENT);
-    lv_obj_align(s_banner, LV_ALIGN_BOTTOM_MID, 0, -84);
+    lv_obj_align(s_banner, LV_ALIGN_BOTTOM_MID, 0, -98);
     lv_obj_set_style_bg_color(s_banner, COL_BG2, 0);
-    lv_obj_set_style_bg_opa(s_banner, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_opa(s_banner, 235, 0);   // ≈ rgba(.92)
     lv_obj_set_style_border_color(s_banner, COL_LINE, 0);
     lv_obj_set_style_border_width(s_banner, 1, 0);
-    lv_obj_set_style_radius(s_banner, 14, 0);
-    lv_obj_set_style_pad_all(s_banner, 12, 0);
+    lv_obj_set_style_radius(s_banner, 16, 0);
+    lv_obj_set_style_pad_hor(s_banner, 15, 0);
+    lv_obj_set_style_pad_ver(s_banner, 13, 0);
+    lv_obj_set_flex_flow(s_banner, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(s_banner, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(s_banner, 11, 0);
     lv_obj_add_flag(s_banner, LV_OBJ_FLAG_IGNORE_LAYOUT);
     lv_obj_clear_flag(s_banner, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *bdot = lv_obj_create(s_banner);
+    lv_obj_remove_style_all(bdot);
+    lv_obj_set_size(bdot, 9, 9);
+    lv_obj_set_style_radius(bdot, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(bdot, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(bdot, COL_DANGER, 0);
+    lv_obj_set_flex_grow(bdot, 0);
+
     lv_obj_t *bl = lv_label_create(s_banner);
+    lv_obj_set_flex_grow(bl, 1);
     lv_label_set_long_mode(bl, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(bl, lv_pct(100));
     lv_obj_set_style_text_font(bl, FONT_META, 0);
     lv_obj_set_style_text_color(bl, COL_INK2, 0);
-    lv_label_set_text(bl, "Can't reach the Mac - check it's on and on the same network.");
+    lv_label_set_text(bl, "Can't reach your computer - check it's on and on the same network.");
     lv_obj_add_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
 
     return s_screen;
@@ -389,8 +408,8 @@ void now_playing_update(const now_playing_vm_t *vm)
     lv_label_set_text(s_src_label,
         vm->source_name[0] ? vm->source_name : "YOUTUBE MUSIC");
     if (playing) {
-        lv_obj_set_style_bg_color(s_state_dot, COL_PURPLE, 0);
-        lv_obj_set_style_text_color(s_state_label, COL_PURPLE, 0);
+        lv_obj_set_style_bg_color(s_state_dot, COL_PINK, 0);
+        lv_obj_set_style_text_color(s_state_label, COL_PINK, 0);
         lv_label_set_text(s_state_label, "PLAYING");
         // dot pulse
         float a = 0.65f + 0.35f * sinf((float)s_pulse * 0.18f);
@@ -408,28 +427,26 @@ void now_playing_update(const now_playing_vm_t *vm)
             buffering ? "BUFFERING" : paused ? "PAUSED" : ad ? "AD" : "IDLE");
     }
 
-    // ---- cover: striped placeholder vs gradient block vs real art ----
+    // ---- cover: real art, or the neutral music_note block (ad / empty) ----
     bool gradient_cover = empty || ad;
     bool have_art = vm->cover_img && !gradient_cover;
     if (gradient_cover) {
-        lv_obj_set_style_bg_color(s_ring.cover_slot, COL_INDIGO, 0);
-        lv_obj_set_style_bg_grad_color(s_ring.cover_slot, COL_PINK, 0);
-        lv_obj_set_style_bg_grad_dir(s_ring.cover_slot, LV_GRAD_DIR_HOR, 0);
-        lv_obj_set_style_border_width(s_ring.cover_slot, 0, 0);
+        lv_obj_set_style_bg_color(s_ring.cover_slot, COL_COVER_A, 0);
+        lv_obj_set_style_bg_grad_color(s_ring.cover_slot, COL_COVER_B, 0);
+        lv_obj_set_style_bg_grad_dir(s_ring.cover_slot, LV_GRAD_DIR_VER, 0);
     } else {
         lv_obj_set_style_bg_grad_dir(s_ring.cover_slot, LV_GRAD_DIR_NONE, 0);
         lv_obj_set_style_bg_color(s_ring.cover_slot, COL_STRIPE, 0);
-        lv_obj_set_style_border_width(s_ring.cover_slot, 1, 0);
     }
     if (have_art) {
         lv_image_set_src(s_cover_img, vm->cover_img);
         lv_obj_clear_flag(s_cover_img, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(s_cover_cap, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_add_flag(s_cover_img, LV_OBJ_FLAG_HIDDEN);
-        if (gradient_cover) lv_obj_add_flag(s_cover_cap, LV_OBJ_FLAG_HIDDEN);
-        else                lv_obj_clear_flag(s_cover_cap, LV_OBJ_FLAG_HIDDEN);
     }
+    // music_note glyph only over the neutral block (ad / empty)
+    if (gradient_cover) lv_obj_clear_flag(s_cover_glyph, LV_OBJ_FLAG_HIDDEN);
+    else                lv_obj_add_flag(s_cover_glyph, LV_OBJ_FLAG_HIDDEN);
 
     // ---- title / artist / album (or buffering shimmer) ----
     if (buffering) {
@@ -500,9 +517,7 @@ void now_playing_update(const now_playing_vm_t *vm)
     lv_obj_set_style_text_color(s_like_label,
         vm->is_favorite ? COL_PINK : COL_INK3, 0);
 
-    // ---- dim scrim + banner (ad / disconnected) ----
-    if (ad || disc) lv_obj_clear_flag(s_scrim, LV_OBJ_FLAG_HIDDEN);
-    else            lv_obj_add_flag(s_scrim, LV_OBJ_FLAG_HIDDEN);
+    // ---- glassy banner (disconnected only; V1's dim scrim is gone) ----
     if (disc) lv_obj_clear_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
     else      lv_obj_add_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
 }

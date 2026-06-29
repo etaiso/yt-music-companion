@@ -1,6 +1,7 @@
 # ytmboard-bridge
 
-Mac-side bridge: **ytmdesktop Companion Server → `now_playing_vm` → board**.
+Cross-platform bridge (Node.js, macOS or Windows): **ytmdesktop Companion Server →
+`now_playing_vm` → board**.
 Implements the core slice of [`docs/SPEC-ytmusic-adapter.md`](../docs/SPEC-ytmusic-adapter.md).
 
 ```
@@ -8,11 +9,15 @@ YouTube Music ── ytmdesktop (plays audio) ──Socket.IO/REST(127.0.0.1)─
 ```
 
 The board stays dumb: it speaks one plain-WebSocket protocol and never touches
-Socket.IO, auth, or TLS. The bridge handles all of that on the Mac.
+Socket.IO, auth, or TLS. The bridge handles all of that on the host PC.
+
+> **Running on Windows?** See [WINDOWS-SETUP.md](WINDOWS-SETUP.md). It's the
+> recommended host when the Mac is corporate-managed (Jamf/GlobalProtect/CrowdStrike),
+> since the locked-down firewall blocks the board's inbound WebSocket connection.
 
 ## Prerequisites
 
-1. **ytmdesktop v2.0.0+** running on this Mac.
+1. **ytmdesktop v2.0.0+** running on this host (macOS or Windows).
 2. In ytmdesktop: **Settings → Integration →** enable **Companion Server** *and*
    **"enable companion authorization."**
 
@@ -39,7 +44,7 @@ Force a fresh handshake (e.g. token revoked) with `npm run auth`.
   push as a binary frame keyed to the current track (re-rendered only when the art
   URL changes).
 - **Discovery** — advertise `_ytmboard._tcp` over mDNS on the board port (TXT:
-  `proto=ws`, `path=/`, `v=1`) so the board finds the Mac without a hard-coded IP.
+  `proto=ws`, `path=/`, `v=1`) so the board finds the host without a hard-coded IP.
 
 ## Board protocol (text JSON over WebSocket)
 
