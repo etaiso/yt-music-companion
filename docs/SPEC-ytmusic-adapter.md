@@ -108,7 +108,8 @@ YouTube Music ── ytmdesktop (plays audio) ──Socket.IO/REST(localhost)─
 3. **Normalize:** map `/state` → `now_playing_vm_t` (§5). Debounce; skip updates while
    `metadataFilled === false`; set `ad_playing` while `adPlaying`.
 4. **Cover art:** pick the best `video.thumbnails[]`, fetch, resize to the cover slot
-   (~120×120), convert to **RGB565**, push to the board.
+   (172×172), convert to **RGB565**, push to the board. The resize target and the
+   board's expected cover dimension are a contract pair — bump them together.
 5. **Serve the board protocol (§6):** push vm JSON on change; accept commands and
    translate to `POST /command` (§7).
 6. **Discovery:** advertise over mDNS (e.g. `_ytmboard._tcp`) so the board finds the Mac.
@@ -121,7 +122,7 @@ title           ← video.title
 artist          ← video.author
 album           ← video.album                            // optional context line
 source_name     ← "YouTube Music" (or video.album / playlist context)
-cover_img       ← best of video.thumbnails[] → RGB565 ~120px (bridge-side)
+cover_img       ← best of video.thumbnails[] → RGB565 172px (bridge-side)
 playback        ← player.trackState: 0→PB_PAUSED, 1→PB_PLAYING, 2→PB_BUFFERING, -1→buffering
 is_favorite     ← (video.likeStatus === 2)               // command: toggleLike
 is_live         ← video.isLive

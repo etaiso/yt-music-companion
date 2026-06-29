@@ -24,8 +24,9 @@ Key decisions locked:
   with no audio decode needed).
 - **LVGL:** v9 line (v9.5.0, matches vendor BSP).
 - **Font:** Inter ExtraBold/800 (OFL-licensed).
-- **Cover art:** the bridge pushes pre-resized ~120×120 RGB565 bitmaps; the board
-  blits directly (no on-device JPEG decode or TLS).
+- **Cover art:** the bridge pushes pre-resized 172×172 RGB565 bitmaps; the board
+  blits directly (no on-device JPEG decode or TLS). The bridge resize target and the
+  board's expected cover dimension are a contract pair — bumped together.
 - **Timeline:** finite `position_sec` + `duration_sec` seekable model; `is_live`
   switches the UI to a LIVE badge for live streams.
 - **Theme:** cream/warm first; dark/AMOLED variant later as a token-table swap.

@@ -27,7 +27,7 @@ typedef struct {
     bool        ad_playing;        // true => show "Advertisement", ignore stale metadata
 
     // cover art: NULL => gradient placeholder block.
-    // later: bridge pushes a PRE-RESIZED RGB565 lv_image_dsc_t (~120x120). Board blits.
+    // later: bridge pushes a PRE-RESIZED RGB565 lv_image_dsc_t (172x172). Board blits.
     const void *cover_img;         // lv_image_dsc_t* (RGB565) or NULL
 
     playback_t  playback;
