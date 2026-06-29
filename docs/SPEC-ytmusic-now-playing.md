@@ -6,9 +6,15 @@ ESP32-S3-Touch-AMOLED-2.16. This document is a cold-start handoff: it carries al
 hardware facts, the architecture decision, the design system, and the scoped first
 task so a fresh session needs no prior context.
 
-**Status:** Greenfield. Nothing built yet. First deliverable = the **Now Playing**
-screen, rendering from **mock data**, styled in the project's design system, with an
-**audio-reactive concentric-ring visualizer** as the hero element.
+**Status:** Now Playing **V2 has shipped** across slices 1–7 — dark/light build-time
+theme + design tokens (`ui/styles.h`), album-derived palette module
+(`ui/palette.h`/`.c`) tinting the rings, V2 ring geometry + 172 px cover
+(`ui/ring_visualizer.c`), and the full V2 screen with all six states
+(`ui/now_playing_screen.c`). It builds and runs on both the desktop sim and the board.
+The screen renders from the **§7 view-model** (mock data + the live bridge). This doc
+has been updated to describe the V2 that shipped; the **PRD in GitHub issue #2** is the
+design source of truth. (The original V1 task description below is kept for context,
+annotated where V2 supersedes it.)
 
 ---
 
@@ -19,7 +25,7 @@ A physical companion for **YouTube Music**. Audio plays on the Mac (via the
 that shows the current track and sends commands. The board never streams audio
 itself — see §3.
 
-The full control/metadata path (ytmdesktop's Companion Server → a small Mac-side
+The full control/metadata path (ytmdesktop's Companion Server → a small host-side
 bridge → the board) is specified separately in `SPEC-ytmusic-adapter.md`. This
 document is about the **screen**.
 
@@ -132,58 +138,127 @@ single bold gradient reserved for brand and "on" states. Translate them into LVG
 theme constants (an `lv_theme` or a shared `styles.h`). The same tokens drive the
 HTML UX preview (`ytmusic-board-ux-preview.html`).
 
-> **V2 update (PRD #2):** `ui/styles.h` now splits these tokens into a **Dark** set
-> (the default — near-black `#070709`, white-opacity text tiers, red accent `#FF4458`)
-> and a **Light** set (the cream values below). Theme is chosen at build time (§11).
-> The cream tokens documented here are the Light set.
+> **V2 update (PRD #2) — SHIPPED.** `ui/styles.h` now splits these tokens into a
+> **Dark** set (the default — near-black/AMOLED) and a **Light** set (the cream look).
+> Theme is chosen at **build time** (§11), a token swap with no runtime toggle. The
+> V2 dark theme is what the device renders by default; the cream values are the Light
+> set, painted on the same V2 layout. Both sets are listed below as they exist in
+> `ui/styles.h`. The 135° indigo→purple→pink brand gradient is **retired from this
+> screen** — the rings are tinted from the **album-derived palette** (see below); the
+> play button and progress bar are solid `COL_INK` (white on Dark), and the only
+> accent the Now Playing screen paints is `COL_PINK` (the V2 red) on the playing-state
+> dot/label and the favorited like. `COL_INDIGO`/`COL_PURPLE` stay defined for brand
+> use elsewhere but are unused by this screen.
 
-### Color tokens
+### Color tokens — Dark (default, V2)
 ```
---bg     #FBF7F3   warm cream — app background
---bg2    #FFFFFF   cards / raised surfaces
---ink    #1A1410   primary text
---ink2   #4A3F37   secondary text
---ink3   #8A7A6E   muted / meta
---ink4   #B8A99A   faint / placeholders / icons
---line   #ECE2D8   borders / dividers
---danger #C0392B   destructive / error only
+COL_BG        #070709   near-black — app background
+COL_BG2       #121215   cards / raised surfaces (disconnected banner)
+COL_INK       #FFFFFF   primary text · play button · progress fill
+COL_INK2      #B7B7BB   secondary text  (~white .72)
+COL_INK3      #949499   muted / meta    (~white .55)
+COL_INK4      #6A6A6E   faint / placeholders / icons (~white .4)
+COL_LINE      #2A2A2D   borders / dividers / progress track (~white .12)
+COL_DANGER    #FF6B6B   offline accent (status + banner dot)
+COL_STRIPE    #16161A   cover placeholder fill (raised dark)
+COL_ON_ACCENT #FFFFFF   glyph/text drawn on an accent fill
+COL_COVER_A   #3A3A3D   neutral cover block (ad/empty) — top
+COL_COVER_B   #1C1C1F   neutral cover block (ad/empty) — bottom
+COL_SHADOW    #000000   drop-shadow color (play button)
 
-Brand gradient (135°):  #6366F1 indigo → #A855F7 purple → #EC4899 pink
-  - pink   #EC4899 = primary interactive accent (icons, hearts, active text, focus)
-  - purple #A855F7 = secondary (play controls, status dots, likes ★, section labels)
-  - Use the GRADIENT sparingly — brand moments, primary actions, active/"on" states only.
+Accent stops (rings use the album palette; only COL_PINK is used on this screen):
+  COL_INDIGO  #6366F1   brand gradient start (defined, unused here)
+  COL_PURPLE  #A855F7   brand secondary (defined, unused here)
+  COL_PINK    #FF4458   primary interactive accent — V2 RED (playing dot/label, like)
+```
+
+### Color tokens — Light (cream, build-time `-DYTM_THEME=LIGHT`)
+```
+COL_BG      #FBF7F3   warm cream — app background
+COL_BG2     #FFFFFF   cards / raised surfaces
+COL_INK     #1A1410   primary text · play button · progress fill
+COL_INK2    #4A3F37   secondary text
+COL_INK3    #8A7A6E   muted / meta
+COL_INK4    #B8A99A   faint / placeholders / icons
+COL_LINE    #ECE2D8   borders / dividers / progress track
+COL_DANGER  #C0392B   destructive / offline accent
+COL_STRIPE  #F3EADF   cover placeholder fill
+COL_COVER_A #D8CFC2   neutral cover block (ad/empty) — top
+COL_COVER_B #BFB3A2   neutral cover block (ad/empty) — bottom
+COL_SHADOW  #000000   drop-shadow color (play button)
+
+Accent stops:  #6366F1 indigo → #A855F7 purple → #EC4899 pink (Light keeps pink as
+the primary accent; Dark swaps pink for the V2 red #FF4458).
 ```
 > LVGL note: LVGL can't gradient-fill text. For the wordmark/brand titles, either
-> use a pre-rendered gradient image/font or approximate with solid `pink`. For the
-> ring visualizer, LVGL supports gradient strokes via `lv_grad_dsc_t` / arc styling;
-> a 3–4 stop indigo→purple→pink gradient is the target.
+> use a pre-rendered gradient image/font or approximate with a solid accent. The ring
+> visualizer uses **per-ring solid strokes** sampled from the album palette's three
+> stops (not a single `lv_grad_dsc_t` sweep). The play button is a solid `COL_INK`
+> circle with an inverted (`COL_BG`) glyph and a soft `COL_SHADOW` drop shadow; the
+> progress bar is a knobless solid `COL_INK` fill on a `COL_LINE` track — no gradients
+> remain on the V2 Now Playing screen.
+
+### Album-derived palette (`ui/palette.h` / `palette.c`)
+A pure, LVGL-independent module that turns the current cover art into a **3-stop
+palette** — `[0] light → [1] mid → [2] accent` — driving the ring strokes (and, by
+design, the ambient glow; see below). `palette_derive()` takes the raw RGB565 cover
+bitmap, downsamples it to ≤16×16 cells, takes the mean as the base tint and the
+most-saturated cell as the accent, then builds the stops by adjusting
+lightness/saturation in HSL. It is **deterministic, malloc-free, and host-unit-tested**
+(`tests/test_palette.c`), and runs **once per track change** (keyed on the cover
+`lv_image_dsc_t` pointer), never per frame.
+
+`PALETTE_NEUTRAL` is the fixed fallback — a cool desaturated gray ramp
+(`#B9C0CC → #8A93A3 → #5C6473`) — returned for any **no-art** case: NULL/zero-dim
+art, or a cover with no usable hue (grayscale, pure black/white, peak saturation
+< 0.10). The renderer also forces neutral for the ad / idle (nothing playing) /
+disconnected states. Rings start neutral until the first track's palette is pushed.
+
+> **Ambient glow — designed, not yet built.** The V2 design
+> (`NowPlayingDeviceV2.dc.html`) paints a full-bleed album-mood glow behind the
+> cover, and the palette module is meant to feed it as well as the rings. In the
+> firmware/sim today the glow is **gated behind `THEME_AMBIENT_ENABLED`** (Dark-only;
+> Light paints flat) and is left to a later slice — the renderer wires the palette
+> into the **ring strokes only**.
 
 ### Typography
 **Bundled font: Inter** (SIL OFL, embeddable). Inter is a UI-designed face that is
-strong at heavy weights and reads cleanly at small sizes on the AMOLED panel. Bundle
-**ExtraBold/800** for titles + section labels and **Regular/Medium** for body/meta.
-| Role | Style |
-|---|---|
-| Section label | 11 px, weight 800, UPPERCASE, letter-spacing ~1.5 px |
-| Display title | large (~22–28 px on this screen), weight 800, tight tracking |
-| Body | ~15 px, ink / ink2 |
-| Meta / caption | 11–13 px, ink3 |
+strong at heavy weights and reads cleanly at small sizes on the AMOLED panel. The
+shipped V2 weight set is **Regular / SemiBold 600 / ExtraBold 800** (900 is not
+bundled — 800 suffices at panel scale). Sizes below are the generated LVGL faces in
+`ui/styles.h`.
+| Role | Token | Shipped face |
+|---|---|---|
+| Section label / status | `FONT_LABEL` | Inter ExtraBold 12, UPPERCASE, letter-spacing ~1 px |
+| Display title | `FONT_TITLE` | Inter ExtraBold 29, tight tracking |
+| Body (artist) | `FONT_BODY` | Inter SemiBold 17, ink2 |
+| Meta (album) | `FONT_META` | Inter SemiBold 13, ink3 |
+| Time (elapsed/total) | `FONT_TIME` | Inter SemiBold 12, ink3 |
+
+Transport/like glyphs are bundled **Material Symbols** icon fonts (`mdi_solid` FILL 1,
+`mdi_line` FILL 0), generated by `scripts/gen_icons.sh`.
 
 ### Shapes
-- Pills: fully rounded (radius 999). Cards/dialogs: ~16 px radius. Soft shadows.
+- Pills: fully rounded (`RAD_PILL`). Cards/banner: `RAD_CARD` 16 px. Hero cover:
+  `RAD_COVER` **26 px** (V2, was 20). Soft shadows (play button drop shadow).
 
 ### Signature element
 **Concentric audio rings** — the project's identity (logo + splash + now-playing).
 On this board they are the hero of Now Playing and **react to live audio energy**.
-This is the user's original "sound visualization" goal.
+This is the user's original "sound visualization" goal. In V2 the rings are **tinted
+from the album-derived palette** (above) rather than the fixed brand gradient — they
+take on the color of whatever's playing, and fall back to the neutral gray ramp for
+no-art states. Exact V2 geometry is in §6.
 
 ---
 
 ## 6. THE TASK — Now Playing screen
 
-A single full-screen (480×480) LVGL screen. Reference mockup:
-`ytmusic-board-ux-preview.html` (the Now Playing panel). Build it to render from the
-**view-model in §7**, populated with mock data for now.
+A single full-screen (480×480) LVGL screen. **Reference design (V2, current source of
+truth):** `design/now-playing-screen-design/project/NowPlayingDeviceV2.dc.html` (the
+dark theme, album-tinted rings, 172 px cover). The V1 file `NowPlayingDevice.dc.html`
+and `ytmusic-board-ux-preview.html` are the superseded cream mockups. Build it to
+render from the **view-model in §7**, populated with mock data for now.
 
 ### Layout (regions, top → bottom)
 ```
@@ -191,8 +266,8 @@ A single full-screen (480×480) LVGL screen. Reference mockup:
 │  YouTube Music                  ▷ PLAYING │   status bar: source label (l) · state (r)
 │                                          │
 │            ╭───────────────╮             │
-│         (   concentric rings  )          │   HERO: audio-reactive gradient rings
-│        (    ┌─────────┐       )           │   with cover art centered (rounded ~20px)
+│         (   concentric rings  )          │   HERO: audio-reactive album-tinted rings
+│        (    ┌─────────┐       )           │   with 172 px cover centered (rounded, RAD_COVER)
 │         (   │  cover  │      )            │
 │            ╰───────────────╯             │
 │                                          │
@@ -207,17 +282,32 @@ A single full-screen (480×480) LVGL screen. Reference mockup:
 ```
 
 ### The ring visualizer (the one bold thing — spend effort here)
-- 3–4 concentric arcs/circles, brand gradient stroke, behind/around the cover.
-- **Audio-reactive:** rings scale + fade outward driven by a normalized energy
-  value (`level` 0..1) updated per frame. Mock now (sine/eased random); later fed by
-  the bridge if a system-audio energy source is added (ytmdesktop exposes no FFT —
-  see §9 / adapter spec §5). Rings ripple outward; inner rings react more strongly.
-- Respect a "reduce motion / visualizer off" setting (gentle timed pulse fallback).
+**Shipped V2 geometry** (`ui/ring_visualizer.c`), transcribed 1:1 from the
+`NowPlayingDeviceV2.dc.html` canvas `draw()`:
+- **3 concentric rings** behind/around the cover, centered on the cover (`cr = 86`,
+  i.e. the **172 px cover** radius), raised high on the screen (design `cy ≈ 188`).
+- Per-ring radius: `r = cr + baseGap + i·step + amp[i]·level·0.9`, with
+  **`baseGap = 20`, `step = 24`, `amp = [18, 12, 8]`** (outer→inner index `i = 0..2`).
+- Per-ring stroke **width `3.6 − 0.7·i`** → `[3.6, 2.9, 2.2]`; per-ring
+  **alpha `(0.8 − 0.2·i)·(0.4 + 0.6·level)`** (inner rings react more strongly).
+- **Color:** each ring takes a stop from the **album palette** mapped light→mid→accent
+  across inner→outer (the ripple uses the accent). Neutral gray ramp until the first
+  track palette is pushed; neutral for no-art states. (V1 used a fixed
+  indigo/purple/pink stroke — replaced.)
+- **Ripple echo** on energy peaks: spawned when `level > 0.7`; expands `r += 2.8`,
+  decays `life −= 0.02`, alpha `life·0.4`, width `2.4·life + 0.4`.
+- The rings/ripples deliberately **bleed past the hero box** (overflow-visible, ring
+  container 360 px) instead of clipping — matching the design's full-bleed canvas.
+- **Audio-reactive:** `level` 0..1 updated per frame. Mock now (sine/eased random);
+  the live bridge sends `level 0` (ytmdesktop exposes no FFT — see §9 / adapter §5),
+  so a synthesized two-detuned-sines "breathing" fallback animates the rings when no
+  real energy arrives. Paused passes `level ≈ 0.16`, idle/buffering `≈ 0.06`.
+- Respect a **reduce-motion** setting (minimal slow breathing instead of energy).
 
 ### Interactions (emit intent only — no transport logic on board)
 | Control | Emits |
 |---|---|
-| Play/pause (center, purple) | `toggle_play` |
+| Play/pause (center, white 80 px circle, dark glyph) | `toggle_play` |
 | Prev / Next | `prev` / `next` |
 | Like ♥ (right) | `toggle_favorite` (→ toggleLike) |
 | Timeline drag | `seek(offset_seconds)` |
@@ -226,16 +316,25 @@ A single full-screen (480×480) LVGL screen. Reference mockup:
 In this task, commands just log / call a stub `emit(cmd, args)`. Wiring them to the
 bridge is a later task (§9).
 
-### States & copy (plain, active, sentence case)
-- **Playing** — full layout.
-- **Paused** — play glyph; rings fall back to gentle pulse.
-- **Buffering** — shimmer on title line; rings idle.
-- **No track info** — title area shows `Nothing playing right now`; no artist, no
-  album. Cover falls back to a gradient block.
-- **Ad playing** — title area shows `Advertisement`; cover = gradient block; controls
-  dimmed (metadata is stale during ads — see adapter spec §8).
-- **Disconnected from host** — small banner: `Can't reach the Mac — check it's on and
-  on the same network.` (error states explain + how to fix; no apology.)
+### States & copy (V2 state frames, `now_playing_screen.c`)
+The V1 50% dim **scrim was removed** in V2; states differentiate via the rings, the
+cover block, the status dot/label, and (for disconnected) a banner.
+- **Playing** — full layout; status dot/label in `COL_PINK` (V2 red) with a pulsing
+  dot; rings album-tinted and energy-reactive.
+- **Paused** — play glyph; status `PAUSED` (`COL_INK4`/`COL_INK3`); rings gentle pulse
+  (`level ≈ 0.16`).
+- **Buffering** — `BUFFERING`; shimmer placeholder bars replace title/artist/album;
+  rings idle (`level ≈ 0.06`).
+- **No track info (idle)** — title `Nothing playing right now`, `IDLE` state, no
+  artist/album, progress row hidden; cover = neutral `COL_COVER_A→COL_COVER_B` block
+  with a centered `music_note` glyph; rings neutral palette.
+- **Ad playing** — title `Advertisement`, `AD` state; same neutral cover block +
+  `music_note`; rings neutral. **No dim scrim** (metadata is stale during ads — see
+  adapter spec §8).
+- **Disconnected from host** — `OFFLINE` (`COL_DANGER`); a **glassy banner** (opaque
+  `COL_BG2` rounded panel ≈ rgba .92, red glow dot) reads `Can't reach your computer —
+  check it's on and on the same network.` (error states explain + how to fix; no
+  apology.)
 
 ---
 
@@ -301,7 +400,7 @@ toward `duration_sec`, loops a fake track, and occasionally flips
 - Clean separation: **render reads only `now_playing_vm_t`**; no network code yet.
 
 ## 9. Out of scope / next steps (record, don't build)
-1. **YT Music bridge + protocol:** the Mac-side bridge that talks to ytmdesktop's
+1. **YT Music bridge + protocol:** the host-side bridge that talks to ytmdesktop's
    Companion Server and feeds this view-model — fully specified in
    `SPEC-ytmusic-adapter.md`. Build after this screen renders from mock data.
 2. **Other screens:** Browse / Search (queue + search + mini-player), Explore
@@ -319,7 +418,9 @@ toward `duration_sec`, loops a fake track, and occasionally flips
 - Schematic: linked from the board docs "Resources" page (confirm tap points there if needed)
 - ytmdesktop Companion Server API: https://github.com/ytmdesktop/ytmdesktop/wiki/v2-%E2%80%90-Companion-Server-API-v1
 - Bridge + field mapping: `SPEC-ytmusic-adapter.md`
-- Mockup: `ytmusic-board-ux-preview.html` (Now Playing = first panel)
+- **V2 design (current source of truth):** `design/now-playing-screen-design/project/NowPlayingDeviceV2.dc.html`; PRD in GitHub issue #2 ("Now Playing screen V2")
+- V1 mockups (superseded): `NowPlayingDevice.dc.html`, `ytmusic-board-ux-preview.html`
+- Shipped UI source: `ui/styles.h` (tokens), `ui/palette.h`+`.c` (album palette), `ui/ring_visualizer.c` (rings), `ui/now_playing_screen.c` (screen)
 
 ## 11. Decisions (resolved at kickoff)
 - **Framework:** ESP-IDF + vendor BSP (board is a pure UI client; §4).

@@ -5,9 +5,11 @@
 A hardware companion device for **YouTube Music**. The Waveshare
 ESP32-S3-Touch-AMOLED-2.16 (already in hand) is a polished physical UI client: it
 shows the current track and sends commands (play/pause/skip/like/seek/volume). All
-audio playback runs on the Mac via the **ytmdesktop** desktop app; a small Mac-side
-bridge normalizes ytmdesktop's state into the board's view-model and serves it to the
-board over Wi-Fi. No audio, decoding, TLS, or auth runs on the board itself.
+audio playback runs on a host PC via the **ytmdesktop** desktop app; a small
+cross-platform bridge (Node.js, macOS or Windows) normalizes ytmdesktop's state into
+the board's view-model and serves it to the board over Wi-Fi. No audio, decoding, TLS,
+or auth runs on the board itself. (Windows is the recommended host when the Mac is
+corporate-managed — see `bridge/WINDOWS-SETUP.md`.)
 
 **Current state**
 
@@ -15,7 +17,7 @@ Spec-and-first-slice phase. Two specs are written:
 
 - `SPEC-ytmusic-now-playing.md` — the first vertical slice: the Now Playing screen,
   rendering from mock data.
-- `SPEC-ytmusic-adapter.md` — the Mac-side bridge that talks to ytmdesktop's
+- `SPEC-ytmusic-adapter.md` — the host-side bridge that talks to ytmdesktop's
   Companion Server (localhost:9863, Socket.IO + REST) and feeds the board.
 
 Key decisions locked:
@@ -39,7 +41,7 @@ Browse, Explore, and Idle/clock.
 **Sequenced deliverables** (one at a time, fully scoped before the next):
 
 1. **Build the Now Playing vertical slice with mock data** ← current
-2. Build the Mac-side YT Music bridge; wire the board's `emit(...)` stubs to it and
+2. Build the host-side YT Music bridge; wire the board's `emit(...)` stubs to it and
    replace mock data with the live feed.
 3. Remaining screens (Browse, Explore, Idle/clock).
 4. System-audio energy → ring visualizer `level` (derive on the Mac).
@@ -50,7 +52,7 @@ Browse, Explore, and Idle/clock.
   Bluetooth Classic/A2DP) and cannot run desktop libraries, so audio stays on the
   Mac and the board is a client/controller.
 - **No official YouTube Music API.** The control/state path goes through ytmdesktop's
-  Companion Server, fronted by a Mac-side bridge.
+  Companion Server, fronted by a host-side bridge.
 - **Verified pin map matters.** The Waveshare Arduino header (`pin_config.h`) has
   confirmed copy-paste errors — MCLK listed as GPIO 16 (correct: 42) and resolution
   466×466 (correct: 480×480). Verified: I2S MCLK=42, BCLK=9, WS=45, DOUT=8, DIN=10,
@@ -62,5 +64,5 @@ Browse, Explore, and Idle/clock.
 
 - **Hardware:** Waveshare ESP32-S3-Touch-AMOLED-2.16
 - **Firmware stack:** ESP-IDF + vendor BSP, LVGL v9
-- **Backend:** ytmdesktop Companion Server API (localhost:9863) + a Mac-side bridge
+- **Backend:** ytmdesktop Companion Server API (localhost:9863) + a cross-platform Node.js bridge (macOS or Windows)
 - **Reference repos:** Waveshare demo repository, ytmdesktop
