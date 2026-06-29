@@ -228,7 +228,7 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_clear_flag(s_prog_row, LV_OBJ_FLAG_SCROLLABLE);
 
     s_elapsed = lv_label_create(s_prog_row);
-    lv_obj_set_style_text_font(s_elapsed, FONT_META, 0);
+    lv_obj_set_style_text_font(s_elapsed, FONT_TIME, 0);
     lv_obj_set_style_text_color(s_elapsed, COL_INK3, 0);
     lv_label_set_text(s_elapsed, "1:12");
 
@@ -249,7 +249,7 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_add_event_cb(s_slider, on_slider, LV_EVENT_RELEASED, NULL);
 
     s_total = lv_label_create(s_prog_row);
-    lv_obj_set_style_text_font(s_total, FONT_META, 0);
+    lv_obj_set_style_text_font(s_total, FONT_TIME, 0);
     lv_obj_set_style_text_color(s_total, COL_INK3, 0);
     lv_label_set_text(s_total, "3:48");
 
