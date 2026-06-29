@@ -201,7 +201,7 @@ and point the `FONT_*` macros in `ui/styles.h` at it. `styles.h` is the only fil
 touch for theming and fonts.
 
 **What's not in this slice.** No Wi-Fi, no host discovery, no real audio. The next
-deliverable is the Mac-side ytmdesktop bridge (`docs/SPEC-ytmusic-adapter.md`), which
+deliverable is the host-side ytmdesktop bridge (`docs/SPEC-ytmusic-adapter.md`), which
 will replace the mock feed and wire the `emit(...)` stubs to real commands. See
 `docs/PROJECT-OVERVIEW.md` for the full roadmap.
 
