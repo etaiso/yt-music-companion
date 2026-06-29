@@ -75,9 +75,14 @@ On Windows, see [sim/README.md](sim/README.md) for the MSYS2 + SDL2 setup.
 
 ```sh
 cd firmware
+idf.py menuconfig                    # set Wi-Fi SSID/password (required for the live feed)
 idf.py set-target esp32s3
 idf.py -p <port> flash monitor      # <port>: /dev/tty.usbmodem* (mac) or COMx (Windows)
 ```
+
+`menuconfig` is also where you switch to the **Light** theme, adjust brightness, or set
+a bridge-host fallback — see [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for every
+option. (For a mock-data demo with no Wi-Fi, disable the live feed there instead.)
 
 Find `<port>` by listing serial devices with the board unplugged, then plugged in —
 the new entry is the board:
