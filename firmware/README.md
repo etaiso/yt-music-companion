@@ -1,24 +1,27 @@
 # YT Music Companion — firmware (Now Playing slice)
 
-First vertical slice from `docs/SPEC-ytmusic-now-playing.md`, recreated to match the
-imported Claude Design (`design/now-playing-screen-design/project/Now Playing.dc.html`
-+ `NowPlayingDevice.dc.html`): the **Now Playing** screen for the Waveshare
-ESP32-S3-Touch-AMOLED-2.16, rendering from **mock data**. No network code yet — the
-render layer reads only `now_playing_vm_t`; controls log intent through an `emit()`
-stub.
+The **Now Playing** screen for the Waveshare ESP32-S3-Touch-AMOLED-2.16, built to the
+**V2 dark** design (`docs/SPEC-ytmusic-now-playing.md` /
+`design/now-playing-screen-design/project/Now Playing v2.dc.html` +
+`NowPlayingDeviceV2.dc.html`). The render layer reads only `now_playing_vm_t` — fed by
+`mock.c` in the simulator or the live Mac bridge on device (see `main/net_backend.c`) —
+and controls emit intent through `emit()`.
 
-Faithful to the design: 3 concentric gradient rings (geometry/alpha/width and the
-peak ripple transcribed from the design's canvas `draw()`), a pulsing status dot,
-128px cover with striped placeholder + "cover" caption, gradient cover block for
-ad/idle, buffering shimmer bars, gradient seek bar, the 5-button transport
-(dislike · prev · play/pause · next · like), and the dim scrim + offline banner.
+Faithful to the design: 3 concentric rings (geometry/alpha/width and the peak ripple
+transcribed from the design's canvas `draw()`), tinted from an album-derived palette
+(`ui/palette.c`); a pulsing red status dot; a 172px hero cover, with a neutral
+`music_note` block for ad/idle; buffering shimmer bars; a white knobless seek bar; the
+5-button transport (dislike · prev · play/pause · next · like); and a glassy offline
+banner (V1's 50% dim scrim is gone). Theme is Dark by default — Light is the same
+layout painted with light tokens and the album glow disabled.
 
 ## Layout
 
 ```
 ui/                      portable LVGL v9 UI — shared by device + simulator
   now_playing_vm.h       the board<->bridge contract (view-model)
-  styles.h               design tokens (cream theme); single source of truth
+  styles.h               design tokens (Dark/Light, build-time theme; default Dark)
+  palette.{h,c}          pure album-art -> 3-stop palette (host-unit-tested)
   ring_visualizer.{h,c}  signature concentric audio rings (level-reactive)
   now_playing_screen.{h,c}  the screen; reads ONLY the view-model
   mock.{h,c}             fake feed cycling all six states
@@ -75,21 +78,15 @@ renders. Regenerate fonts with `./scripts/gen_fonts.sh`.
 
 ## Icons
 
-Transport uses LVGL's built-in symbols, which map 1:1 to the design's
-`skip_previous` / `skip_next` / `pause` / `play_arrow`. The design's **thumb_up /
-thumb_down** (like / dislike) have no built-in equivalent, so the slice uses up/down
-arrows as stand-ins (correct colors + behavior). To match the design exactly, bundle
-a Material Symbols Rounded subset with just `thumb_up`/`thumb_down`, e.g.
-
-```bash
-lv_font_conv --font MaterialSymbolsRounded.ttf --range 0xe8dc,0xe8db \
-  --size 26 --format lvgl --bpp 4 -o material_thumbs.c
-```
-
-then point a `FONT_ICONS` macro in `styles.h` at it and swap the two `LV_SYMBOL_UP/DOWN`
-labels in `now_playing_screen.c`.
+Glyphs come from bundled **Material Symbols** subsets — `ui/mdi_solid.c` (filled:
+transport, filled `thumb_up`, `music_note`) and `ui/mdi_line.c` (outline thumbs for the
+unfavorited/dislike state) — matching the design exactly rather than approximating with
+built-in symbols. `styles.h` points the `FONT_ICONS` macro at them. Regenerate the icon
+fonts with `./scripts/gen_icons.sh` (companion to `gen_fonts.sh`).
 
 ## Not in this slice (next tasks)
 
-Mac-side ytmdesktop bridge + protocol wiring (`docs/SPEC-ytmusic-adapter.md`),
-remaining screens, Wi-Fi/host discovery, real audio-energy `level`.
+The album-derived **ambient glow** background (issue #9) is not yet rendered — the
+palette and the Dark-only `THEME_AMBIENT_ENABLED` flag exist, but the screen does not
+yet paint the glow canvas behind the cover/rings. Also pending: remaining screens and
+real audio-energy `level` from the bridge.
