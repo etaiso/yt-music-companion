@@ -23,3 +23,18 @@ if(NOT MSVC)
 endif()
 
 add_test(NAME palette COMMAND test_palette)
+
+# Ambient-glow painter: also pure C (no LVGL), compiled standalone with palette.c.
+add_executable(test_ambient
+    test_ambient.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/ambient_paint.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/palette.c
+)
+target_include_directories(test_ambient PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../ui)
+
+if(NOT MSVC)
+    target_compile_options(test_ambient PRIVATE -Wall -Wextra)
+    target_link_libraries(test_ambient PRIVATE m)
+endif()
+
+add_test(NAME ambient COMMAND test_ambient)

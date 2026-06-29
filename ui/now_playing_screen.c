@@ -4,6 +4,7 @@
 // Render layer reads ONLY now_playing_vm_t. No network code; controls emit().
 #include "now_playing_screen.h"
 #include "ring_visualizer.h"
+#include "ambient_glow.h"
 #include "palette.h"
 #include "styles.h"
 #include <math.h>
@@ -17,6 +18,7 @@ static lv_obj_t  *s_src_label;     // status bar left
 static lv_obj_t  *s_state_dot;     // status bar right: colored dot
 static lv_obj_t  *s_state_label;   // status bar right: text
 static ring_viz_t s_ring;
+static ambient_glow_t s_glow;     // album-derived ambient layer (Dark only)
 static lv_obj_t  *s_cover_cap;     // "COVER" caption (placeholder)
 static lv_obj_t  *s_cover_img;     // real art (hidden until provided)
 static lv_obj_t  *s_title;
@@ -38,13 +40,15 @@ static const void *s_pal_key;      // cover_img for the palette in effect (NULL 
 
 static void emit(const char *cmd, int arg) { if (s_emit) s_emit(cmd, arg); }
 
-// Re-derive the ring palette only when the art behind it changes — once per
-// track change, not per frame (palette_derive downsamples the whole cover).
-// no-art states (ad / idle / disconnected) and a missing cover fall back to the
-// fixed neutral palette. `cover_img` identity tracks the track: net_backend
-// double-buffers and publishes a fresh dsc per cover, the mock keeps one stable
-// dsc, so a pointer change is a reliable "new art" signal.
-static void refresh_ring_palette(const now_playing_vm_t *vm, bool no_art)
+// Re-derive the album palette only when the art behind it changes — once per
+// track change, not per frame (palette_derive downsamples the whole cover, and
+// the ambient glow repaints its whole canvas). Both the rings and the static
+// ambient glow are tinted from the same derived palette. no-art states (ad /
+// idle / disconnected) and a missing cover fall back to the fixed neutral
+// palette. `cover_img` identity tracks the track: net_backend double-buffers and
+// publishes a fresh dsc per cover, the mock swaps the dsc per track, so a pointer
+// change is a reliable "new art" signal.
+static void refresh_palette(const now_playing_vm_t *vm, bool no_art)
 {
     const void *key = no_art ? NULL : vm->cover_img;
     if (key == s_pal_key) return;
@@ -52,12 +56,14 @@ static void refresh_ring_palette(const now_playing_vm_t *vm, bool no_art)
 
     if (!key) {
         ring_viz_set_palette(&s_ring, &PALETTE_NEUTRAL);
+        ambient_glow_set_palette(&s_glow, &PALETTE_NEUTRAL);
         return;
     }
     const lv_image_dsc_t *d = (const lv_image_dsc_t *)vm->cover_img;
     palette_t pal = palette_derive((const uint16_t *)(const void *)d->data,
                                    d->header.w, d->header.h);
     ring_viz_set_palette(&s_ring, &pal);
+    ambient_glow_set_palette(&s_glow, &pal);
 }
 
 static void fmt_time(char *buf, size_t n, int32_t sec)
@@ -121,6 +127,12 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_set_flex_flow(s_screen, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(s_screen, LV_FLEX_ALIGN_START,
                           LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    // ---- ambient glow (back-most layer; Dark only) ----
+    // Created first so the upscaled glow canvas + vignette sit behind every other
+    // widget. Both are IGNORE_LAYOUT, so the flex column above ignores them. In
+    // the Light theme ambient_glow_create() builds nothing.
+    s_glow = ambient_glow_create(s_screen);
 
     // ---- status bar ----
     lv_obj_t *bar = lv_obj_create(s_screen);
@@ -366,7 +378,7 @@ void now_playing_update(const now_playing_vm_t *vm)
     // ---- rings (always drawn; level varies by state, color tracks the album) ----
     // no_art uses the neutral palette for ad/idle/disconnected (no usable art):
     // ad/empty paint the gradient cover block, disconnected may hold stale art.
-    refresh_ring_palette(vm, ad || empty || disc);
+    refresh_palette(vm, ad || empty || disc);
     float lvl;
     if (playing)        lvl = vm->level;       // mock/bridge energy
     else if (paused)    lvl = 0.16f;
