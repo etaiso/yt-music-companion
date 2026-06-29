@@ -22,6 +22,21 @@ cmake --build build
 A 480×480 window opens showing Now Playing. It cycles all six states every ~6 s;
 clicking the transport controls prints the emitted command, e.g. `emit: next (0)`.
 
+## Theme (Dark / Light)
+
+The sim builds the **Dark** theme by default (the V2 near-black look). To build the
+**Light** theme — the same layout painted with light tokens and the album glow
+disabled — pass the theme flag at configure time:
+
+```bash
+cmake -B build -DYTM_THEME=LIGHT
+cmake --build build
+```
+
+This defines `YTM_THEME_LIGHT` for the build; omitting it (or `-DYTM_THEME=DARK`)
+falls back to Dark. The same split is driven on firmware by the Kconfig "UI theme"
+choice. Re-run `cmake -B build -DYTM_THEME=DARK` to switch back.
+
 ## Headless check (CI / no display)
 
 ```bash

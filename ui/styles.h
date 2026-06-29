@@ -1,7 +1,8 @@
 // styles.h — centralized design tokens (SPEC-ytmusic-now-playing.md §5)
 //
-// One source of truth for the theme. A dark/AMOLED variant later is a swap of
-// these values, not a rewrite. NO ad-hoc colors anywhere else in the UI.
+// One source of truth for the theme. The dark/light split is a token swap, not a
+// rewrite: every role below is defined once per theme block. NO ad-hoc colors
+// anywhere else in the UI.
 #pragma once
 
 #include "lvgl.h"
@@ -10,7 +11,31 @@
 extern "C" {
 #endif
 
-// ---- Color tokens (cream / warm theme) ----
+// ---- Build-time theme selection ----
+// Dark (V2 default, near-black/AMOLED) is the default AND the fallback in BOTH
+// build systems. Light is the same layout painted with light tokens and the
+// album glow disabled. There is no runtime toggle.
+//   - Firmware: a Kconfig `choice` sets CONFIG_YTM_THEME_LIGHT when Light is picked
+//     (see firmware/main/Kconfig.projbuild). Default leaves it dark.
+//   - Desktop sim: pass -DYTM_THEME_LIGHT (e.g. `cmake -B build -DYTM_THEME=LIGHT`).
+// Anything else — including no define at all — resolves to Dark.
+#if defined(CONFIG_YTM_THEME_LIGHT) || defined(YTM_THEME_LIGHT)
+#  define THEME_IS_LIGHT 1
+#else
+#  define THEME_IS_LIGHT 0
+#endif
+
+// Album-derived ambient glow is a Dark-only feature; Light paints flat (no glow).
+// The renderer (later slice) checks this flag before building the glow canvas.
+#if THEME_IS_LIGHT
+#  define THEME_AMBIENT_ENABLED 0
+#else
+#  define THEME_AMBIENT_ENABLED 1
+#endif
+
+// ---- Color tokens ----
+#if THEME_IS_LIGHT
+// ===== Light theme (cream / warm) — V2 layout, light tokens, glow disabled =====
 #define COL_BG        lv_color_hex(0xFBF7F3)  // warm cream — app background
 #define COL_BG2       lv_color_hex(0xFFFFFF)  // cards / raised surfaces
 #define COL_INK       lv_color_hex(0x1A1410)  // primary text
@@ -18,12 +43,33 @@ extern "C" {
 #define COL_INK3      lv_color_hex(0x8A7A6E)  // muted / meta
 #define COL_INK4      lv_color_hex(0xB8A99A)  // faint / placeholders / icons
 #define COL_LINE      lv_color_hex(0xECE2D8)  // borders / dividers
-#define COL_DANGER    lv_color_hex(0xC0392B)  // destructive / error only
+#define COL_DANGER    lv_color_hex(0xC0392B)  // destructive / offline accent
+#define COL_STRIPE    lv_color_hex(0xF3EADF)  // cover placeholder fill
+#define COL_ON_ACCENT lv_color_hex(0xFFFFFF)  // glyph/text drawn on an accent fill
 
 // Brand gradient stops (135°): indigo -> purple -> pink
 #define COL_INDIGO    lv_color_hex(0x6366F1)  // gradient start
 #define COL_PURPLE    lv_color_hex(0xA855F7)  // secondary accent (play, dots, ★)
 #define COL_PINK      lv_color_hex(0xEC4899)  // primary interactive accent
+#else
+// ===== Dark theme (default) — near-black / AMOLED =====
+#define COL_BG        lv_color_hex(0x070709)  // near-black — app background
+#define COL_BG2       lv_color_hex(0x121215)  // cards / raised surfaces (banner)
+#define COL_INK       lv_color_hex(0xFFFFFF)  // primary text (white)
+#define COL_INK2      lv_color_hex(0xB7B7BB)  // secondary text (~white .72)
+#define COL_INK3      lv_color_hex(0x949499)  // muted / meta (~white .55)
+#define COL_INK4      lv_color_hex(0x6A6A6E)  // faint / placeholders / icons (~white .4)
+#define COL_LINE      lv_color_hex(0x2A2A2D)  // borders / dividers (~white .12)
+#define COL_DANGER    lv_color_hex(0xFF6B6B)  // offline accent
+#define COL_STRIPE    lv_color_hex(0x16161A)  // cover placeholder fill (raised dark)
+#define COL_ON_ACCENT lv_color_hex(0xFFFFFF)  // glyph/text drawn on an accent fill
+
+// Accent stops. The primary interactive accent is the V2 red (#FF4458); the
+// indigo/purple stops keep the multi-stop gradient on slider/play/cover.
+#define COL_INDIGO    lv_color_hex(0x6366F1)  // gradient start
+#define COL_PURPLE    lv_color_hex(0xA855F7)  // secondary accent (play, dots, ★)
+#define COL_PINK      lv_color_hex(0xFF4458)  // primary interactive accent (red)
+#endif
 
 // ---- Radii ----
 #define RAD_PILL      LV_RADIUS_CIRCLE
