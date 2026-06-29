@@ -202,7 +202,7 @@ one-time Allow click — run `cd bridge && npm install && npm start` on the Mac.
 **Decisions taken** (SPEC §10): language **Node**; board transport **WebSocket**.
 
 **Cover-art pass DONE** (§4.4): `src/cover.js` fetches the best thumbnail, square-crops
-to `COVER_PX` (120) via `sharp`, encodes RGB565, and pushes an 8-byte-header binary
+to `COVER_PX` (172) via `sharp`, encodes RGB565, and pushes an 8-byte-header binary
 frame (`"YC"` magic / version / format / w / h + pixels). `board-server` broadcasts it
 and replays it to late joiners; `index` re-renders only when the art URL changes and
 skips ads. `normalize` adds `track_id` so the board pairs a cover to its track. Smoke

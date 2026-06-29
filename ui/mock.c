@@ -1,10 +1,49 @@
 #include "mock.h"
+#include "lvgl.h"
 #include <math.h>
 #include <string.h>
 
 // Each scene holds for SCENE_MS, then we advance to the next so a DoD reviewer
 // sees all six states cycle on their own.
 #define SCENE_MS 6000
+
+// Mock cover dimension. Mirrors the board/bridge cover contract (COVER_PX in
+// firmware/main/net_backend.c and bridge/src/config.js) so the sim exercises
+// the real on-the-wire cover size — 172x172 RGB565.
+#define MOCK_COVER_PX 172
+
+// A synthetic 172x172 RGB565 cover so the hero art renders at the real size
+// without hardware or the bridge. Built once in mock_init().
+static uint16_t       s_cover_px[MOCK_COVER_PX * MOCK_COVER_PX];
+static lv_image_dsc_t s_cover_dsc;
+
+static void build_mock_cover(now_playing_vm_t *vm)
+{
+    // A multi-hue diagonal gradient (green top-left -> magenta bottom-right):
+    // clearly "album art", and asymmetric so a wrong width/orientation shows.
+    for (int y = 0; y < MOCK_COVER_PX; y++) {
+        for (int x = 0; x < MOCK_COVER_PX; x++) {
+            float fx = (float)x / (MOCK_COVER_PX - 1);
+            float fy = (float)y / (MOCK_COVER_PX - 1);
+            int r = (int)(40 + 200 * fx);
+            int g = (int)(60 + 120 * (1.0f - fy));
+            int b = (int)(120 + 120 * fy);
+            uint16_t v = ((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >> 3);
+            s_cover_px[y * MOCK_COVER_PX + x] = v;
+        }
+    }
+
+    memset(&s_cover_dsc, 0, sizeof s_cover_dsc);
+    s_cover_dsc.header.magic  = LV_IMAGE_HEADER_MAGIC;
+    s_cover_dsc.header.cf     = LV_COLOR_FORMAT_RGB565; // RGB565 LE, matches the panel/board
+    s_cover_dsc.header.w      = MOCK_COVER_PX;
+    s_cover_dsc.header.h      = MOCK_COVER_PX;
+    s_cover_dsc.header.stride = MOCK_COVER_PX * 2;
+    s_cover_dsc.data          = (const uint8_t *)s_cover_px;
+    s_cover_dsc.data_size     = sizeof s_cover_px;
+
+    vm->cover_img = &s_cover_dsc;
+}
 
 typedef enum {
     SC_PLAYING = 0,
@@ -37,7 +76,7 @@ void mock_init(now_playing_vm_t *vm)
     vm->playback      = PB_PLAYING;
     vm->host_connected = true;
     vm->is_favorite   = false;
-    vm->cover_img     = NULL;  // gradient placeholder for the slice
+    build_mock_cover(vm);      // 172x172 RGB565 hero art (ad/empty still show the gradient block)
     s_scene = SC_PLAYING;
 }
 
