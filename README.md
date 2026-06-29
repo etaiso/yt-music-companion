@@ -55,12 +55,50 @@ data. See [docs/PROJECT-OVERVIEW.md](docs/PROJECT-OVERVIEW.md) for full status a
 
 ## Quick start
 
-Run the UI in the desktop simulator (no hardware needed — just CMake + SDL2):
+Two ways to run it: the desktop simulator (fastest, no hardware) or the real board fed
+by live music.
+
+### Option A — Desktop simulator (no hardware)
+
+Runs the exact same `ui/` code in an SDL window, cycling through all six player states:
 
 ```sh
-brew install cmake sdl2
+brew install cmake sdl2                                            # macOS
 cd sim && cmake -B build && cmake --build build && ./build/ytm_sim
 ```
 
-See [sim/README.md](sim/README.md) and [firmware/README.md](firmware/README.md) for
-details.
+On Windows, see [sim/README.md](sim/README.md) for the MSYS2 + SDL2 setup.
+
+### Option B — On the board, with live music
+
+**1. Flash the firmware** (Dark theme is the default). Install ESP-IDF v5.5+ once, then:
+
+```sh
+cd firmware
+idf.py set-target esp32s3
+idf.py -p <port> flash monitor      # <port>: /dev/tty.usbmodem* (mac) or COMx (Windows)
+```
+
+Find `<port>` by listing serial devices with the board unplugged, then plugged in —
+the new entry is the board:
+
+- **macOS/Linux:** `ls /dev/tty.usb*` (board is usually `/dev/tty.usbmodem*`)
+- **Windows:** `Get-CimInstance Win32_PnPEntity | ? Name -match 'COM\d+' | % Name`
+  (board shows as **"USB Serial Device (COMx)"** — the ESP32-S3's native USB-JTAG)
+
+**2. Run the bridge** on the host PC running [ytmdesktop](https://ytmdesktop.app)
+(enable **Companion Server** + **authorization** in its Settings → Integration first):
+
+```sh
+cd bridge
+npm install
+npm start                           # first run: click ALLOW in ytmdesktop within ~30s
+```
+
+**3. Play a song.** The board auto-discovers the bridge over mDNS (both must share the
+same subnet — Ethernet or the **2.4GHz** Wi-Fi band) and switches to the live track,
+cover art, and controls.
+
+Full details: [docs/RUNNING.md](docs/RUNNING.md) (build/flash), [bridge/README.md](bridge/README.md)
+and [bridge/WINDOWS-SETUP.md](bridge/WINDOWS-SETUP.md) (running the bridge, recommended
+on Windows when the Mac is corporate-managed).
