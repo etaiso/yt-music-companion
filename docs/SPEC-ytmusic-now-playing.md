@@ -132,6 +132,11 @@ single bold gradient reserved for brand and "on" states. Translate them into LVG
 theme constants (an `lv_theme` or a shared `styles.h`). The same tokens drive the
 HTML UX preview (`ytmusic-board-ux-preview.html`).
 
+> **V2 update (PRD #2):** `ui/styles.h` now splits these tokens into a **Dark** set
+> (the default — near-black `#070709`, white-opacity text tiers, red accent `#FF4458`)
+> and a **Light** set (the cream values below). Theme is chosen at build time (§11).
+> The cream tokens documented here are the Light set.
+
 ### Color tokens
 ```
 --bg     #FBF7F3   warm cream — app background
@@ -325,5 +330,9 @@ toward `duration_sec`, loops a fake track, and occasionally flips
   the board's expected cover dimension are a **contract pair** — bump them together.
 - **Timeline:** finite **`position_sec` + `duration_sec`** seekable model;
   `is_live` switches the UI to a LIVE badge for live streams (§7).
-- **Theme:** ship the **cream** look now; structure tokens in one styles header so a
-  **dark/AMOLED variant** is a later token-table swap, not a rewrite (§5).
+- **Theme:** ~~ship the **cream** look now~~ → **superseded by the V2 redesign (PRD
+  #2).** The dark/AMOLED variant is now the default, selected at **build time** (firmware
+  Kconfig `choice`, default Dark; desktop sim `-DYTM_THEME=LIGHT`). The styles header
+  splits the tokens of §5 into Dark and Light sets; "Light" is the cream look painted on
+  the V2 layout, not V1. The token-table-swap structure anticipated here is exactly what
+  made that possible. See `ui/styles.h` and PRD #2 / issue #3.

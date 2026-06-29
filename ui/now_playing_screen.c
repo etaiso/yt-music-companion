@@ -9,8 +9,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#define COL_STRIPE lv_color_hex(0xF3EADF)  // striped-cover placeholder fill
-
 static emit_cb_t  s_emit;
 
 static lv_obj_t  *s_screen;
@@ -281,7 +279,7 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     s_play_label = lv_label_create(play);
     lv_label_set_text(s_play_label, IC_PAUSE);
     lv_obj_set_style_text_font(s_play_label, FONT_ICONS, 0);
-    lv_obj_set_style_text_color(s_play_label, COL_BG2, 0);
+    lv_obj_set_style_text_color(s_play_label, COL_ON_ACCENT, 0);
     lv_obj_center(s_play_label);
 
     icon_btn(tr, IC_NEXT, 48, FONT_ICONS, COL_INK, on_next, NULL);
