@@ -25,7 +25,7 @@ A physical companion for **YouTube Music**. Audio plays on the Mac (via the
 that shows the current track and sends commands. The board never streams audio
 itself — see §3.
 
-The full control/metadata path (ytmdesktop's Companion Server → a small Mac-side
+The full control/metadata path (ytmdesktop's Companion Server → a small host-side
 bridge → the board) is specified separately in `SPEC-ytmusic-adapter.md`. This
 document is about the **screen**.
 
@@ -400,7 +400,7 @@ toward `duration_sec`, loops a fake track, and occasionally flips
 - Clean separation: **render reads only `now_playing_vm_t`**; no network code yet.
 
 ## 9. Out of scope / next steps (record, don't build)
-1. **YT Music bridge + protocol:** the Mac-side bridge that talks to ytmdesktop's
+1. **YT Music bridge + protocol:** the host-side bridge that talks to ytmdesktop's
    Companion Server and feeds this view-model — fully specified in
    `SPEC-ytmusic-adapter.md`. Build after this screen renders from mock data.
 2. **Other screens:** Browse / Search (queue + search + mini-player), Explore

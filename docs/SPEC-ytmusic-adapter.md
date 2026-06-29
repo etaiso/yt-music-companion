@@ -2,8 +2,14 @@
 
 **Purpose:** Make the board control + display **YouTube Music**, behind the same
 `now_playing_vm_t` view-model defined in `SPEC-ytmusic-now-playing.md` (§7). This is
-the **board's only backend** — a small Mac-side bridge that talks to ytmdesktop and
+the **board's only backend** — a small host-side bridge that talks to ytmdesktop and
 feeds the board.
+
+> **"Mac-side" / "on the Mac" throughout this spec means "on the host PC running
+> ytmdesktop," not Mac-specifically.** The bridge is plain Node.js and runs on macOS
+> or Windows; the placement decision in §3 is host-vs-board, host-OS-agnostic. Windows
+> is in fact the recommended host when the Mac is corporate-managed — see
+> `bridge/WINDOWS-SETUP.md`.
 
 **Status:** Spec only. Build after the Now Playing screen renders from mock data (the
 screen is what gives this bridge a visible target). Companion to the Now Playing spec.
