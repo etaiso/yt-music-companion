@@ -4,6 +4,7 @@
 // Render layer reads ONLY now_playing_vm_t. No network code; controls emit().
 #include "now_playing_screen.h"
 #include "ring_visualizer.h"
+#include "palette.h"
 #include "styles.h"
 #include <math.h>
 #include <stdio.h>
@@ -33,8 +34,31 @@ static lv_obj_t  *s_banner;        // disconnected banner
 
 static bool       s_user_seeking;
 static uint32_t   s_pulse;         // status-dot pulse counter
+static const void *s_pal_key;      // cover_img for the palette in effect (NULL = neutral)
 
 static void emit(const char *cmd, int arg) { if (s_emit) s_emit(cmd, arg); }
+
+// Re-derive the ring palette only when the art behind it changes — once per
+// track change, not per frame (palette_derive downsamples the whole cover).
+// no-art states (ad / idle / disconnected) and a missing cover fall back to the
+// fixed neutral palette. `cover_img` identity tracks the track: net_backend
+// double-buffers and publishes a fresh dsc per cover, the mock keeps one stable
+// dsc, so a pointer change is a reliable "new art" signal.
+static void refresh_ring_palette(const now_playing_vm_t *vm, bool no_art)
+{
+    const void *key = no_art ? NULL : vm->cover_img;
+    if (key == s_pal_key) return;
+    s_pal_key = key;
+
+    if (!key) {
+        ring_viz_set_palette(&s_ring, &PALETTE_NEUTRAL);
+        return;
+    }
+    const lv_image_dsc_t *d = (const lv_image_dsc_t *)vm->cover_img;
+    palette_t pal = palette_derive((const uint16_t *)(const void *)d->data,
+                                   d->header.w, d->header.h);
+    ring_viz_set_palette(&s_ring, &pal);
+}
 
 static void fmt_time(char *buf, size_t n, int32_t sec)
 {
@@ -143,9 +167,16 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_set_width(hero, lv_pct(100));
     lv_obj_set_flex_grow(hero, 1);
     lv_obj_clear_flag(hero, LV_OBJ_FLAG_SCROLLABLE);
+    // V2 rings reach ~330px across (cr 86 + gap/step/amps) and ripples expand
+    // past that; let them bleed beyond the hero box like the design's full-bleed
+    // canvas instead of being clipped.
+    lv_obj_add_flag(hero, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
 
-    s_ring = ring_viz_create(hero, 300);
-    lv_obj_center(s_ring.cont);
+    s_ring = ring_viz_create(hero, 360);
+    lv_obj_add_flag(s_ring.cont, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    // Raise the ring/cover center so the cover sits high on the screen (V2 design
+    // cy ~188 of 480), leaving room for the title block below.
+    lv_obj_align(s_ring.cont, LV_ALIGN_CENTER, 0, -30);
 
     // striped placeholder fill (design uses 45deg stripes; solid approx + caption)
     lv_obj_set_style_bg_opa(s_ring.cover_slot, LV_OPA_COVER, 0);
@@ -332,7 +363,10 @@ void now_playing_update(const now_playing_vm_t *vm)
     bool paused    = vm->playback == PB_PAUSED && !ad && !empty && !disc;
     bool playing   = vm->playback == PB_PLAYING && !ad && !empty && !disc;
 
-    // ---- rings (always drawn; level varies by state) ----
+    // ---- rings (always drawn; level varies by state, color tracks the album) ----
+    // no_art uses the neutral palette for ad/idle/disconnected (no usable art):
+    // ad/empty paint the gradient cover block, disconnected may hold stale art.
+    refresh_ring_palette(vm, ad || empty || disc);
     float lvl;
     if (playing)        lvl = vm->level;       // mock/bridge energy
     else if (paused)    lvl = 0.16f;
