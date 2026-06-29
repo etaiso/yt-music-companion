@@ -9,6 +9,22 @@ config YTM_USE_NET
         When unset, the firmware drives the screen from mock.c — useful for an
         offline demo on hardware. The desktop simulator always uses mock.
 
+choice YTM_THEME
+    prompt "UI theme"
+    default YTM_THEME_DARK
+    help
+        Build-time theme for the Now Playing screen. Dark is the V2 default
+        (near-black, AMOLED-friendly, with the album-derived ambient glow).
+        Light is the same layout painted with light tokens and the glow
+        disabled. There is no runtime toggle; the V1 cream design is gone.
+
+    config YTM_THEME_DARK
+        bool "Dark (default)"
+
+    config YTM_THEME_LIGHT
+        bool "Light"
+endchoice
+
 config YTM_DISPLAY_BRIGHTNESS
     int "Display brightness (percent)"
     range 5 100
