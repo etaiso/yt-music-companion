@@ -20,3 +20,12 @@ The design medium is **HTML/CSS/JS** — these are prototypes, not production co
 
 - `now-playing-screen-design/README.md` — this file
 - `now-playing-screen-design/project/` — the `Now Playing screen design` project files (HTML prototypes, assets, components)
+
+## Versions
+
+The project ships two design revisions. **V2 is the current direction** — a dark theme.
+
+- **V1** (light) — `project/Now Playing.dc.html` + `project/NowPlayingDevice.dc.html`. Light screen (`#FBF7F3`), 128px cover, purple `#A855F7` accent. Screenshot: `project/screenshots/canvas.png`.
+- **V2** (dark) — `project/Now Playing v2.dc.html` + `project/NowPlayingDeviceV2.dc.html`. Near-black screen (`#070709`) with an album-art ambient glow, 172px cover, weight-900 type, red `#FF4458` accent. The V2 canvas imports the `NowPlayingDeviceV2` component. Screenshot: `project/screenshots/canvas-v2.png`.
+
+Both share `project/support.js` (runtime only — do not port).
