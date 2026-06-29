@@ -71,13 +71,28 @@ On Windows, see [sim/README.md](sim/README.md) for the MSYS2 + SDL2 setup.
 
 ### Option B — On the board, with live music
 
-**1. Flash the firmware** (Dark theme is the default). Install ESP-IDF v5.5+ once, then:
+**Prerequisites:**
+
+- **ESP-IDF v5.5+** — to build and flash the firmware ([install guide](docs/RUNNING.md#21-install-esp-idf-one-time)).
+- **Node.js 18+** — to run the bridge.
+- **[ytmdesktop](https://ytmdesktop.app)** on the host PC, with **Companion Server** +
+  **authorization** enabled (Settings → Integration).
+- **A 2.4GHz Wi-Fi network** the board and host PC both share (the ESP32-S3 is 2.4GHz only).
+- **Your Wi-Fi SSID + password** — these are **mandatory** and set at build time via
+  `menuconfig` (step 1); the board can't reach the bridge without them.
+
+**1. Flash the firmware** (Dark theme is the default):
 
 ```sh
 cd firmware
+idf.py menuconfig                    # REQUIRED: set Wi-Fi SSID/password under "YT Music board"
 idf.py set-target esp32s3
 idf.py -p <port> flash monitor      # <port>: /dev/tty.usbmodem* (mac) or COMx (Windows)
 ```
+
+`menuconfig` is also where you switch to the **Light** theme, adjust brightness, or set
+a bridge-host fallback — see [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for every
+option. (For a mock-data demo with no Wi-Fi, disable the live feed there instead.)
 
 Find `<port>` by listing serial devices with the board unplugged, then plugged in —
 the new entry is the board:
