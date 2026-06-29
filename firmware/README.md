@@ -86,7 +86,5 @@ fonts with `./scripts/gen_icons.sh` (companion to `gen_fonts.sh`).
 
 ## Not in this slice (next tasks)
 
-The album-derived **ambient glow** background (issue #9) is not yet rendered — the
-palette and the Dark-only `THEME_AMBIENT_ENABLED` flag exist, but the screen does not
-yet paint the glow canvas behind the cover/rings. Also pending: remaining screens and
-real audio-energy `level` from the bridge.
+Pending: remaining screens and real audio-energy `level` from the bridge (the rings
+currently fall back to a synthesized breathing pulse when the feed reports no energy).
