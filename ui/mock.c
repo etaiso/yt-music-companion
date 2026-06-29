@@ -12,37 +12,58 @@
 // the real on-the-wire cover size — 172x172 RGB565.
 #define MOCK_COVER_PX 172
 
-// A synthetic 172x172 RGB565 cover so the hero art renders at the real size
-// without hardware or the bridge. Built once in mock_init().
-static uint16_t       s_cover_px[MOCK_COVER_PX * MOCK_COVER_PX];
-static lv_image_dsc_t s_cover_dsc;
+// A few synthetic 172x172 RGB565 covers with clearly different dominant hues, so
+// the album-derived palette (rings + ambient glow) visibly changes as the demo
+// cycles tracks — without hardware or the bridge. Built once in mock_init().
+#define N_TRACKS 3
 
-static void build_mock_cover(now_playing_vm_t *vm)
+static uint16_t       s_cover_px[N_TRACKS][MOCK_COVER_PX * MOCK_COVER_PX];
+static lv_image_dsc_t s_cover_dsc[N_TRACKS];
+
+typedef struct {
+    const char *title, *artist, *album;
+    int32_t     duration;
+    uint8_t     c0[3], c1[3];  // diagonal gradient endpoints -> the album's hue
+} mock_track_t;
+
+// Hues mirror the V2 design's three cover palettes (midnight / tides / lanterns).
+static const mock_track_t s_tracks[N_TRACKS] = {
+    { "Midnight Drive", "The Reverb Club", "Neon Nights - Album", 228,
+      {  49,  46, 129 }, { 236,  72, 153 } },  // indigo -> pink
+    { "Coastal Tides",  "Marina Vale",     "Undertow - EP",       195,
+      {   8, 100, 120 }, { 103, 232, 249 } },  // deep -> bright cyan
+    { "Paper Lanterns", "Akiko Mori",      "Festival - Single",   243,
+      { 124,  45,  18 }, { 245, 158,  11 } },  // ember -> amber
+};
+
+static int s_track;  // current album index; advances each full scene cycle
+
+static void build_mock_cover(int i)
 {
-    // A multi-hue diagonal gradient (green top-left -> magenta bottom-right):
-    // clearly "album art", and asymmetric so a wrong width/orientation shows.
+    const mock_track_t *t = &s_tracks[i];
+    // Asymmetric diagonal blend (weights != 0.5) so a wrong width/orientation
+    // shows as a skewed image, as the original single cover did.
     for (int y = 0; y < MOCK_COVER_PX; y++) {
         for (int x = 0; x < MOCK_COVER_PX; x++) {
             float fx = (float)x / (MOCK_COVER_PX - 1);
             float fy = (float)y / (MOCK_COVER_PX - 1);
-            int r = (int)(40 + 200 * fx);
-            int g = (int)(60 + 120 * (1.0f - fy));
-            int b = (int)(120 + 120 * fy);
+            float d  = fx * 0.65f + fy * 0.35f;
+            int r = (int)(t->c0[0] + (t->c1[0] - t->c0[0]) * d);
+            int g = (int)(t->c0[1] + (t->c1[1] - t->c0[1]) * d);
+            int b = (int)(t->c0[2] + (t->c1[2] - t->c0[2]) * d);
             uint16_t v = ((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >> 3);
-            s_cover_px[y * MOCK_COVER_PX + x] = v;
+            s_cover_px[i][y * MOCK_COVER_PX + x] = v;
         }
     }
 
-    memset(&s_cover_dsc, 0, sizeof s_cover_dsc);
-    s_cover_dsc.header.magic  = LV_IMAGE_HEADER_MAGIC;
-    s_cover_dsc.header.cf     = LV_COLOR_FORMAT_RGB565; // RGB565 LE, matches the panel/board
-    s_cover_dsc.header.w      = MOCK_COVER_PX;
-    s_cover_dsc.header.h      = MOCK_COVER_PX;
-    s_cover_dsc.header.stride = MOCK_COVER_PX * 2;
-    s_cover_dsc.data          = (const uint8_t *)s_cover_px;
-    s_cover_dsc.data_size     = sizeof s_cover_px;
-
-    vm->cover_img = &s_cover_dsc;
+    memset(&s_cover_dsc[i], 0, sizeof s_cover_dsc[i]);
+    s_cover_dsc[i].header.magic  = LV_IMAGE_HEADER_MAGIC;
+    s_cover_dsc[i].header.cf     = LV_COLOR_FORMAT_RGB565; // RGB565 LE, matches the panel/board
+    s_cover_dsc[i].header.w      = MOCK_COVER_PX;
+    s_cover_dsc[i].header.h      = MOCK_COVER_PX;
+    s_cover_dsc[i].header.stride = MOCK_COVER_PX * 2;
+    s_cover_dsc[i].data          = (const uint8_t *)s_cover_px[i];
+    s_cover_dsc[i].data_size     = sizeof s_cover_px[i];
 }
 
 typedef enum {
@@ -61,22 +82,26 @@ static float    s_t;        // free-running time for level synthesis
 
 static void load_track(now_playing_vm_t *vm)
 {
+    const mock_track_t *t = &s_tracks[s_track];
     strncpy(vm->source_name, "YOUTUBE MUSIC", sizeof vm->source_name - 1);
-    strncpy(vm->title,  "Midnight Drive",  sizeof vm->title  - 1);
-    strncpy(vm->artist, "The Reverb Club", sizeof vm->artist - 1);
-    strncpy(vm->album,  "Neon Nights - Album", sizeof vm->album - 1);
-    vm->duration_sec = 228;   // 3:48
+    strncpy(vm->title,  t->title,  sizeof vm->title  - 1);
+    strncpy(vm->artist, t->artist, sizeof vm->artist - 1);
+    strncpy(vm->album,  t->album,  sizeof vm->album  - 1);
+    vm->duration_sec = t->duration;
+    vm->cover_img    = &s_cover_dsc[s_track];  // swaps per track -> palette re-derives
 }
 
 void mock_init(now_playing_vm_t *vm)
 {
     memset(vm, 0, sizeof *vm);
+    for (int i = 0; i < N_TRACKS; i++)
+        build_mock_cover(i);   // 172x172 RGB565 hero art (ad/empty still show the gradient block)
+    s_track = 0;
     load_track(vm);
     vm->position_sec  = 72;   // 1:12
     vm->playback      = PB_PLAYING;
     vm->host_connected = true;
     vm->is_favorite   = false;
-    build_mock_cover(vm);      // 172x172 RGB565 hero art (ad/empty still show the gradient block)
     s_scene = SC_PLAYING;
 }
 
@@ -125,6 +150,9 @@ void mock_tick(now_playing_vm_t *vm, uint32_t dt_ms)
     if (s_scene_ms >= SCENE_MS) {
         s_scene_ms = 0;
         s_scene = (scene_t)((s_scene + 1) % SC__COUNT);
+        // each full cycle (back to PLAYING) advances to the next album, so the
+        // glow + rings visibly re-derive on a track change.
+        if (s_scene == SC_PLAYING) s_track = (s_track + 1) % N_TRACKS;
         // flip the like state each loop so both appearances are seen
         bool fav = vm->is_favorite;
         enter_scene(vm, s_scene);

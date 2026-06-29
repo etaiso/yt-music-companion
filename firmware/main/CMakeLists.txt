@@ -6,6 +6,8 @@ idf_component_register(
          "net_backend.c"
          "${UI_DIR}/now_playing_screen.c"
          "${UI_DIR}/ring_visualizer.c"
+         "${UI_DIR}/ambient_glow.c"
+         "${UI_DIR}/ambient_paint.c"
          "${UI_DIR}/palette.c"
          "${UI_DIR}/mock.c"
          "${UI_DIR}/mdi_solid.c"
