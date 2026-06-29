@@ -264,7 +264,7 @@ typedef struct {
     bool         ad_playing;       // true => show "Advertisement", ignore stale metadata
     // cover art: start with a bundled placeholder / gradient.
     // later: the bridge pushes a PRE-RESIZED RGB565 bitmap sized to the cover slot
-    //   (~120x120, ~28KB). Board blits directly — no on-device TLS or JPEG decode.
+    //   (172x172, ~58KB). Board blits directly — no on-device TLS or JPEG decode.
     //   (Decided: pre-resize on the Mac for quality+performance — see §11.)
     const void  *cover_img;        // lv_img_dsc_t* (RGB565) or NULL
 
@@ -320,8 +320,9 @@ toward `duration_sec`, loops a fake track, and occasionally flips
 - **Framework:** ESP-IDF + vendor BSP (board is a pure UI client; §4).
 - **LVGL:** v9 line, latest v9.x — current major, matches the vendor BSP (§4).
 - **Font:** **Inter** (OFL), ExtraBold/800 for titles, Regular/Medium for body (§5).
-- **Cover art:** the bridge pushes a **pre-resized RGB565 bitmap** (~120 px) to the
-  board; the board blits it — no on-device decode (§7).
+- **Cover art:** the bridge pushes a **pre-resized RGB565 bitmap** (172 px) to the
+  board; the board blits it — no on-device decode (§7). The bridge resize target and
+  the board's expected cover dimension are a **contract pair** — bump them together.
 - **Timeline:** finite **`position_sec` + `duration_sec`** seekable model;
   `is_live` switches the UI to a LIVE badge for live streams (§7).
 - **Theme:** ship the **cream** look now; structure tokens in one styles header so a

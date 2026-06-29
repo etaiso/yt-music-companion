@@ -22,7 +22,7 @@ ytmdesktop (Mac)  ──►  Mac-side bridge  ──Wi-Fi──►  ESP32-S3 boa
 - **Board** — pure UI client/controller. ESP32-S3 (BLE only, no A2DP), so it never
   touches audio.
 - **Bridge** — talks to ytmdesktop's Companion Server (`localhost:9863`, Socket.IO +
-  REST), pushes pre-resized ~120×120 RGB565 cover art the board blits directly.
+  REST), pushes pre-resized 172×172 RGB565 cover art the board blits directly.
 - **View-model** (`now_playing_vm_t`) — source-agnostic render layer; all
   YouTube-Music-specific terms live in the bridge.
 
