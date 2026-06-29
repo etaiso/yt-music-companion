@@ -76,7 +76,7 @@ Text frame = state JSON; binary frame = cover. The board distinguishes by WS opc
 | `BOARD_PORT` | `8765` | board-facing WebSocket port |
 | `YTMBOARD_TOKEN_PATH` | `~/.ytmboard/token.json` | persisted token location |
 | `YTMD_APP_ID` | `ytmboard` | Companion app identity |
-| `COVER_PX` | `120` | cover-art square size pushed to the board |
+| `COVER_PX` | `172` | cover-art square size pushed to the board (contract pair with the board's `COVER_PX`) |
 
 ## Quick test without a board
 

@@ -27,10 +27,15 @@
 
 static const char *TAG = "ytm-net";
 
-#define COVER_PX 120
+// CONTRACT PAIR: COVER_PX must match the bridge's COVER_PX (bridge/src/config.js).
+// parse_cover() rejects any cover whose header dimensions != COVER_PX, so a
+// bridge/board size mismatch fails loudly instead of corrupting the buffer.
+// Bump these two constants together — never independently (SPEC-ytmusic-now-playing.md).
+#define COVER_PX 172
 #define COVER_BYTES (COVER_PX * COVER_PX * 2) // RGB565
 #define COVER_HEADER 8
-// Max reassembled frame: cover (header + pixels) with slack for JSON state.
+// Cover buffers and the RX-reassembly max derive from COVER_BYTES, so they
+// scale automatically when COVER_PX changes.
 #define RX_MAX (COVER_HEADER + COVER_BYTES + 4096)
 
 // ---- shared snapshot -------------------------------------------------------
