@@ -8,15 +8,18 @@ current track and sending commands (play/pause/skip/like/seek/volume).
   <img src="docs/assets/now-playing.png" alt="Now Playing screen" width="360">
 </p>
 
-Audio playback runs on the Mac via the **ytmdesktop** app. A small Mac-side bridge
-normalizes ytmdesktop's state into the board's view-model and serves it over Wi-Fi.
-No audio, decoding, TLS, or auth runs on the board itself.
+Audio playback runs on a host PC via the **ytmdesktop** app. A small cross-platform
+bridge (Node.js, runs on macOS or Windows) normalizes ytmdesktop's state into the
+board's view-model and serves it over Wi-Fi. No audio, decoding, TLS, or auth runs on
+the board itself. See [bridge/WINDOWS-SETUP.md](bridge/WINDOWS-SETUP.md) for the
+Windows host setup (recommended when the Mac is corporate-managed — its firewall
+blocks the board's inbound connection).
 
 ## Architecture
 
 ```
-ytmdesktop (Mac)  ──►  Mac-side bridge  ──Wi-Fi──►  ESP32-S3 board (UI)
-  audio + state        normalize → VM              render + emit commands
+ytmdesktop (Mac/Win)  ──►  bridge (Node.js)  ──Wi-Fi──►  ESP32-S3 board (UI)
+  audio + state            normalize → VM               render + emit commands
 ```
 
 - **Board** — pure UI client/controller. ESP32-S3 (BLE only, no A2DP), so it never
@@ -42,7 +45,7 @@ ytmdesktop (Mac)  ──►  Mac-side bridge  ──Wi-Fi──►  ESP32-S3 boa
 
 - **Hardware:** Waveshare ESP32-S3-Touch-AMOLED-2.16 (480×480, CO5300 QSPI)
 - **Firmware:** ESP-IDF + vendor BSP, LVGL v9.5.0
-- **Backend:** ytmdesktop Companion Server + Mac-side bridge
+- **Backend:** ytmdesktop Companion Server + cross-platform Node.js bridge (macOS or Windows)
 
 ## Status
 
