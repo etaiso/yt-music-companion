@@ -79,6 +79,13 @@ idf.py set-target esp32s3
 idf.py -p <port> flash monitor      # <port>: /dev/tty.usbmodem* (mac) or COMx (Windows)
 ```
 
+Find `<port>` by listing serial devices with the board unplugged, then plugged in —
+the new entry is the board:
+
+- **macOS/Linux:** `ls /dev/tty.usb*` (board is usually `/dev/tty.usbmodem*`)
+- **Windows:** `Get-CimInstance Win32_PnPEntity | ? Name -match 'COM\d+' | % Name`
+  (board shows as **"USB Serial Device (COMx)"** — the ESP32-S3's native USB-JTAG)
+
 **2. Run the bridge** on the host PC running [ytmdesktop](https://ytmdesktop.app)
 (enable **Companion Server** + **authorization** in its Settings → Integration first):
 
