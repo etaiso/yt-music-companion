@@ -63,10 +63,15 @@ and the three calls in `main.c` — that is the only board-specific surface.
 
 ## Fonts
 
-The slice uses LVGL's built-in **Montserrat** (enabled in `sdkconfig.defaults`) so it
-builds with no extra assets. Production swaps in bundled **Inter ExtraBold/800**
-(SPEC §5): convert Inter with `lv_font_conv`, add the `.c`, and point the `FONT_*`
-macros in `styles.h` at it. `styles.h` is the only file to touch.
+The UI renders in bundled **Inter** at the V2 type scale (SPEC §5 /
+`NowPlayingDeviceV2.dc.html`): ExtraBold 800 @29 (title) and @12 (uppercase
+status row), SemiBold 600 @17 (artist) / @13 (album) / @12 (elapsed-total time),
+and Regular @12 (LVGL default / body). The `.c` fonts in `ui/inter_*.c` are
+generated from the Inter variable TTF by
+`scripts/gen_fonts.sh` (deps: `npm i -g lv_font_conv`, `pip install fonttools`),
+and `styles.h` points the `FONT_*` macros at them. There is no Montserrat —
+LVGL's internal default is the tiny built-in `unscii_8`, which the screen never
+renders. Regenerate fonts with `./scripts/gen_fonts.sh`.
 
 ## Icons
 

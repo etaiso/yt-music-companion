@@ -15,8 +15,11 @@ CONFIG_FREERTOS_HZ=1000
 
 # --- LVGL v9 (managed lvgl component Kconfig) ---
 CONFIG_LV_COLOR_DEPTH_16=y
-CONFIG_LV_FONT_MONTSERRAT_12=y
-CONFIG_LV_FONT_MONTSERRAT_14=y
-CONFIG_LV_FONT_MONTSERRAT_16=y
-CONFIG_LV_FONT_MONTSERRAT_22=y
-CONFIG_LV_FONT_MONTSERRAT_28=y
+# Inter, not Montserrat: the UI renders in bundled Inter (ui/inter_*.c, generated
+# by scripts/gen_fonts.sh) and sets per-role fonts explicitly. We drop the four
+# larger Montserrat placeholders this slice no longer uses and move LVGL's
+# internal default font to the tiny built-in unscii_8 — it is never rendered by
+# the screen. (Montserrat 14 stays auto-enabled by LVGL's Kconfig because its
+# bundled examples reference it; our UI does not.)
+CONFIG_LV_FONT_UNSCII_8=y
+CONFIG_LV_FONT_DEFAULT_UNSCII_8=y
