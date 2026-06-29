@@ -24,6 +24,12 @@ add_executable(ytm_sim
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/mock.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/mdi_solid.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/mdi_line.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_extrabold_29.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_extrabold_12.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_semibold_17.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_semibold_13.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_semibold_12.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_regular_12.c
 )
 
 # lv_conf.h lives here; both our code and lvgl must see it on the include path.
