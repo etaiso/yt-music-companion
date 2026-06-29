@@ -3,11 +3,13 @@
 #include <math.h>
 
 // Geometry transcribed from the Claude Design source (NowPlayingDevice.dc.html
-// canvas draw()): cover radius 64, baseGap 18, step 22, per-ring amplitudes,
-// line widths 3.4 - i*0.7, alpha (0.85 - i*0.22)*(0.35 + 0.65*level).
+// canvas draw()): baseGap 18, step 22, per-ring amplitudes, line widths
+// 3.4 - i*0.7, alpha (0.85 - i*0.22)*(0.35 + 0.65*level). The rings hug the
+// cover, so bumping the cover to the V2 172px hero (slice 3) widens them; the
+// tuning params themselves are retuned to the V2 numbers in slice 7.
 #define RING_COUNT 3
-#define COVER_PX   128
-#define CR         (COVER_PX / 2)   // 64
+#define COVER_PX   172              // V2 hero cover
+#define CR         (COVER_PX / 2)   // 86
 #define BASE_GAP   18
 #define STEP       22
 
@@ -58,8 +60,8 @@ ring_viz_t ring_viz_create(lv_obj_t *parent, int box)
     s_ripple = make_ring(rv.cont, COL_PINK);
     lv_obj_add_flag(s_ripple, LV_OBJ_FLAG_HIDDEN);
 
-    // Cover slot (128x128, radius 20) centered. Caller fills with placeholder,
-    // gradient block, or real art.
+    // Cover slot (172x172, radius RAD_COVER) centered. Caller fills with real
+    // art, the neutral gradient block, or a placeholder fill.
     rv.cover_slot = lv_obj_create(rv.cont);
     lv_obj_remove_style_all(rv.cover_slot);
     lv_obj_set_size(rv.cover_slot, COVER_PX, COVER_PX);

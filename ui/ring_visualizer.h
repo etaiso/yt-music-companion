@@ -15,7 +15,7 @@ extern "C" {
 // Returns the container; the cover slot is the centered child you place art in.
 typedef struct {
     lv_obj_t *cont;        // square container, centered in parent
-    lv_obj_t *cover_slot;  // centered 128x128 square for cover art / placeholder
+    lv_obj_t *cover_slot;  // centered 172x172 square for cover art / placeholder
 } ring_viz_t;
 
 ring_viz_t ring_viz_create(lv_obj_t *parent, int box);
