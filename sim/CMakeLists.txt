@@ -21,6 +21,7 @@ add_executable(ytm_sim
     main_sim.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/now_playing_screen.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/ring_visualizer.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/palette.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/mock.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/mdi_solid.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/mdi_line.c
