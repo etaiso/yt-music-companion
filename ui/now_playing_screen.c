@@ -32,9 +32,9 @@ static lv_obj_t  *s_slider;
 static lv_obj_t  *s_play_label;
 static lv_obj_t  *s_like_label;
 static lv_obj_t  *s_banner;        // glassy disconnected banner
-static lv_obj_t *s_batt_box;    // battery outline container (status bar, right)
-static lv_obj_t *s_batt_fill;   // inner fill bar (width = percent)
-static lv_obj_t *s_batt_label;  // "NN%" text
+static lv_obj_t  *s_batt_box;    // battery outline container (status bar, right)
+static lv_obj_t  *s_batt_fill;   // inner fill bar (width = percent)
+static lv_obj_t  *s_batt_label;  // "NN%" text
 
 #define BATTERY_LOW_PCT 20
 
@@ -590,25 +590,44 @@ void now_playing_update(const now_playing_vm_t *vm)
     if (disc) lv_obj_clear_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
     else      lv_obj_add_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
 
-    // ---- battery indicator ----
-    if (!vm->battery_present) {
-        lv_obj_add_flag(s_batt_box, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(s_batt_label, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_clear_flag(s_batt_box, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(s_batt_label, LV_OBJ_FLAG_HIDDEN);
+    // ---- battery indicator (change-gated; this UI is render-bound) ----
+    {
+        static bool s_batt_shown    = false;
+        static int  s_batt_pct_last  = -1;
+        static bool s_batt_chg_last  = false;
 
-        int pct = vm->battery_percent;
-        if (pct < 0) pct = 0; else if (pct > 100) pct = 100;
-        lv_label_set_text_fmt(s_batt_label, "%d%%", pct);
-        lv_obj_set_width(s_batt_fill, lv_pct(pct < 8 ? 8 : pct)); // keep a sliver visible
+        if (!vm->battery_present) {
+            if (s_batt_shown) {
+                lv_obj_add_flag(s_batt_box, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(s_batt_label, LV_OBJ_FLAG_HIDDEN);
+                s_batt_shown = false;
+            }
+        } else {
+            int pct = vm->battery_percent;
+            if (pct < 0) pct = 0; else if (pct > 100) pct = 100;
 
-        lv_color_t c;
-        if (vm->charging)             c = lv_color_hex(0x5AD17A); // green
-        else if (pct <= BATTERY_LOW_PCT) c = lv_color_hex(0xF59E0B); // amber
-        else                          c = COL_INK3;               // normal
-        lv_obj_set_style_bg_color(s_batt_fill, c, 0);
-        lv_obj_set_style_text_color(s_batt_label, c, 0);
+            if (!s_batt_shown) {
+                lv_obj_clear_flag(s_batt_box, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(s_batt_label, LV_OBJ_FLAG_HIDDEN);
+                s_batt_shown = true;
+            }
+            if (pct != s_batt_pct_last || vm->charging != s_batt_chg_last) {
+                s_batt_pct_last = pct;
+                s_batt_chg_last = vm->charging;
+
+                char buf[8];
+                snprintf(buf, sizeof buf, "%d%%", pct);
+                set_text(s_batt_label, buf);   // existing guarded helper
+                lv_obj_set_width(s_batt_fill, lv_pct(pct < 8 ? 8 : pct));
+
+                lv_color_t c;
+                if (vm->charging)                c = lv_color_hex(0x5AD17A);
+                else if (pct <= BATTERY_LOW_PCT) c = lv_color_hex(0xF59E0B);
+                else                             c = COL_INK3;
+                lv_obj_set_style_bg_color(s_batt_fill, c, 0);
+                lv_obj_set_style_text_color(s_batt_label, c, 0);
+            }
+        }
     }
 }
 
