@@ -58,6 +58,16 @@ static lv_obj_t *make_ring(lv_obj_t *parent, lv_color_t color)
     return r;
 }
 
+// Resting border opacity for ring i at a given energy level — the exact curve
+// the static halo is drawn at. Shared by create and breathe so both agree.
+static lv_opa_t ring_opa(int i, float level)
+{
+    float a = (0.8f - i * 0.2f) * (0.4f + 0.6f * level);
+    if (a < 0.0f) a = 0.0f;
+    if (a > 1.0f) a = 1.0f;
+    return (lv_opa_t)(a * 255.0f + 0.5f);
+}
+
 ring_viz_t ring_viz_create(lv_obj_t *parent, int box)
 {
     // Start neutral; the screen pushes the album palette on the first track.
@@ -76,8 +86,7 @@ ring_viz_t ring_viz_create(lv_obj_t *parent, int box)
         s_rings[i] = make_ring(rv.cont, s_color[i]);
         float r = CR + BASE_GAP + i * STEP + s_amp[i] * STATIC_LEVEL * 0.9f;
         place(s_rings[i], r);
-        float a = (0.8f - i * 0.2f) * (0.4f + 0.6f * STATIC_LEVEL);
-        lv_obj_set_style_border_opa(s_rings[i], (lv_opa_t)(a * 255.0f), 0);
+        lv_obj_set_style_border_opa(s_rings[i], ring_opa(i, STATIC_LEVEL), 0);
         int w = (int)(s_width[i] + 0.5f);
         lv_obj_set_style_border_width(s_rings[i], w < 1 ? 1 : w, 0);
     }
@@ -103,4 +112,39 @@ void ring_viz_set_palette(ring_viz_t *rv, const palette_t *pal)
         s_color[i] = pal_color(pal->stop[i]);
         lv_obj_set_style_border_color(s_rings[i], s_color[i], 0);
     }
+}
+
+// Breath tuning. Decimate caps the update rate (now_playing_update ticks ~30 Hz,
+// so 3 -> ~10 Hz). Only the inner BREATH_RINGS rings breathe (inner rings have the
+// smallest bounding boxes -> the cheapest invalidations). Amplitude/rate are a
+// slow, gentle swing around STATIC_LEVEL.
+#define BREATH_DECIMATE 3      // push an opacity update every Nth call
+#define BREATH_RINGS    2      // inner-most N rings breathe (1..RING_COUNT)
+#define BREATH_AMPL     0.10f  // +/- level swing around STATIC_LEVEL
+#define BREATH_RATE     0.10f  // sine phase increment per accepted update
+
+void ring_viz_breathe(ring_viz_t *rv, bool active)
+{
+    (void)rv;
+    static bool     was_active;
+    static uint32_t calls;
+    static uint32_t steps;
+
+    if (!active) {
+        // Settle back to the static halo exactly once; then no per-frame cost.
+        if (was_active) {
+            for (int i = 0; i < RING_COUNT; i++)
+                lv_obj_set_style_border_opa(s_rings[i], ring_opa(i, STATIC_LEVEL), 0);
+            was_active = false;
+        }
+        return;
+    }
+    was_active = true;
+
+    // Throttle: only touch styles every BREATH_DECIMATE calls.
+    if (calls++ % BREATH_DECIMATE != 0) return;
+
+    float level = STATIC_LEVEL + BREATH_AMPL * sinf((float)(steps++) * BREATH_RATE);
+    for (int i = 0; i < BREATH_RINGS && i < RING_COUNT; i++)
+        lv_obj_set_style_border_opa(s_rings[i], ring_opa(i, level), 0);
 }
