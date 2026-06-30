@@ -16,6 +16,12 @@
 #include "mock.h"
 #endif
 
+#include "battery.h"
+#include "quick_panel.h"
+#include "nvs_flash.h"
+#include "nvs.h"
+#include "esp_timer.h"
+
 static const char *TAG = "ytm";
 
 #define TICK_MS 33  // ~30 fps
@@ -40,16 +46,86 @@ static void tick_cb(lv_timer_t *t)
 #else
     mock_tick(&s_vm, TICK_MS);
 #endif
+#if CONFIG_YTM_USE_NET
+    // mock build fills battery itself; live build reads the real AXP2101.
+    {
+        battery_status_t b;
+        battery_get(&b);
+        s_vm.battery_present = b.present;
+        s_vm.battery_percent = b.percent;
+        s_vm.charging        = b.charging;
+    }
+#endif
     now_playing_update(&s_vm);
+    quick_panel_set_battery(s_vm.battery_percent, s_vm.charging, s_vm.battery_present);
+}
+
+#define NVS_NS         "ytm"
+#define NVS_KEY_BRIGHT "bright"
+
+static int brightness_load(void)
+{
+    int32_t v = CONFIG_YTM_DISPLAY_BRIGHTNESS;   // first-boot default
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+        int32_t stored;
+        if (nvs_get_i32(h, NVS_KEY_BRIGHT, &stored) == ESP_OK) v = stored;
+        nvs_close(h);
+    }
+    return (int)v;
+}
+
+static void brightness_save(int pct)
+{
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
+        nvs_set_i32(h, NVS_KEY_BRIGHT, pct);
+        nvs_commit(h);
+        nvs_close(h);
+    }
+}
+
+static esp_timer_handle_t s_bright_timer;
+static int                s_pending_bright;
+
+static void bright_save_cb(void *arg)   // fires 500 ms after the last change
+{
+    (void)arg;
+    brightness_save(s_pending_bright);
+    ESP_LOGI(TAG, "brightness persisted: %d%%", s_pending_bright);
+}
+
+static void fw_brightness(int percent)
+{
+    bsp_display_brightness_set(percent);   // apply immediately
+    s_pending_bright = percent;
+    esp_timer_stop(s_bright_timer);        // debounce flash writes
+    esp_timer_start_once(s_bright_timer, 500 * 1000);
 }
 
 void app_main(void)
 {
     bsp_display_start();          // panel + touch + LVGL up
     bsp_display_backlight_on();
+
+    // NVS: brightness persistence (safe if net_backend also inits NVS — returns
+    // ESP_OK when already initialized).
+    esp_err_t nvs_err = nvs_flash_init();
+    if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ESP_ERROR_CHECK(nvs_flash_init());
+    }
+
+    int initial_bright = brightness_load();
     // AMOLED has no PWM backlight; this sends the panel's brightness command.
-    // Tunable via menuconfig (YT Music board -> Display brightness). 100% is harsh.
-    bsp_display_brightness_set(CONFIG_YTM_DISPLAY_BRIGHTNESS);
+    // Boot value is NVS (last runtime choice) or CONFIG_YTM_DISPLAY_BRIGHTNESS on
+    // first boot. Tunable live via the swipe-down panel.
+    bsp_display_brightness_set(initial_bright);
+
+    const esp_timer_create_args_t targs = { .callback = bright_save_cb, .name = "brt" };
+    ESP_ERROR_CHECK(esp_timer_create(&targs, &s_bright_timer));
+
+    battery_start();
 
 #if CONFIG_YTM_USE_NET
     net_backend_start();          // WiFi + mDNS + WebSocket (async)
@@ -64,6 +140,7 @@ void app_main(void)
     mock_init(&s_vm);
 #endif
     now_playing_create(lv_screen_active());
+    quick_panel_init(lv_screen_active(), fw_brightness, initial_bright);
     now_playing_update(&s_vm);
     lv_timer_create(tick_cb, TICK_MS, NULL);
     bsp_display_unlock();
