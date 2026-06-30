@@ -40,6 +40,12 @@ typedef struct {
     float       level;             // 0..1 audio energy for the ring visualizer
 
     bool        host_connected;    // false => disconnected state
+
+    // board-local device status (filled by battery.c on hardware, mock.c in sim;
+    // NOT from the bridge). present=false hides the indicator.
+    bool        battery_present;
+    int         battery_percent;   // 0..100
+    bool        charging;          // USB present and charging
 } now_playing_vm_t;
 
 #ifdef __cplusplus

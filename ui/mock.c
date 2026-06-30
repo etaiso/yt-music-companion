@@ -101,6 +101,9 @@ void mock_init(now_playing_vm_t *vm)
     vm->position_sec  = 72;   // 1:12
     vm->playback      = PB_PLAYING;
     vm->host_connected = true;
+    vm->battery_present = true;
+    vm->battery_percent = 64;
+    vm->charging        = false;
     vm->is_favorite   = false;
     s_scene = SC_PLAYING;
 }
@@ -144,6 +147,20 @@ static void enter_scene(now_playing_vm_t *vm, scene_t sc)
 void mock_tick(now_playing_vm_t *vm, uint32_t dt_ms)
 {
     s_t += dt_ms / 1000.0f;
+
+    // slow battery animation for the sim: drain, then "plug in" and recharge
+    static float batt_acc; static bool batt_chg;
+    batt_acc += dt_ms / 1000.0f;
+    if (batt_acc >= 2.0f) {            // step every 2 s
+        batt_acc = 0;
+        if (batt_chg) {
+            if (++vm->battery_percent >= 100) batt_chg = false;
+        } else {
+            if (--vm->battery_percent <= 10) batt_chg = true;
+        }
+        vm->charging = batt_chg;
+    }
+    vm->battery_present = true;
 
     // scene rotation
     s_scene_ms += dt_ms;
