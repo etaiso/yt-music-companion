@@ -95,8 +95,8 @@ Then, in that same activated terminal:
 
 ```sh
 cd firmware
+idf.py set-target esp32s3            # FIRST, and only once — this (re)generates sdkconfig
 idf.py menuconfig                    # REQUIRED: set Wi-Fi SSID/password under "YT Music board"
-idf.py set-target esp32s3
 idf.py -p <port> flash monitor      # <port>: /dev/tty.usbmodem* (mac) or COMx (Windows)
 ```
 
