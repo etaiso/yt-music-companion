@@ -32,6 +32,11 @@ static lv_obj_t  *s_slider;
 static lv_obj_t  *s_play_label;
 static lv_obj_t  *s_like_label;
 static lv_obj_t  *s_banner;        // glassy disconnected banner
+static lv_obj_t *s_batt_box;    // battery outline container (status bar, right)
+static lv_obj_t *s_batt_fill;   // inner fill bar (width = percent)
+static lv_obj_t *s_batt_label;  // "NN%" text
+
+#define BATTERY_LOW_PCT 20
 
 static bool       s_user_seeking;
 static uint32_t   s_pulse;         // status-dot pulse counter
@@ -181,6 +186,31 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_set_style_text_color(s_state_label, COL_PINK, 0);
     lv_obj_set_style_text_letter_space(s_state_label, 1, 0);
     lv_label_set_text(s_state_label, "PLAYING");
+
+    // ---- battery indicator (board-local; hidden when no battery present) ----
+    s_batt_label = lv_label_create(st);
+    lv_obj_set_style_text_font(s_batt_label, FONT_LABEL, 0);
+    lv_obj_set_style_text_color(s_batt_label, COL_INK3, 0);
+    lv_obj_set_style_text_letter_space(s_batt_label, 1, 0);
+    lv_label_set_text(s_batt_label, "");
+
+    s_batt_box = lv_obj_create(st);
+    lv_obj_remove_style_all(s_batt_box);
+    lv_obj_set_size(s_batt_box, 22, 12);
+    lv_obj_set_style_radius(s_batt_box, 3, 0);
+    lv_obj_set_style_border_width(s_batt_box, 1, 0);
+    lv_obj_set_style_border_color(s_batt_box, COL_INK3, 0);
+    lv_obj_set_style_pad_all(s_batt_box, 2, 0);
+    lv_obj_clear_flag(s_batt_box, LV_OBJ_FLAG_SCROLLABLE);
+
+    s_batt_fill = lv_obj_create(s_batt_box);
+    lv_obj_remove_style_all(s_batt_fill);
+    lv_obj_set_height(s_batt_fill, lv_pct(100));
+    lv_obj_set_width(s_batt_fill, lv_pct(60));
+    lv_obj_set_style_radius(s_batt_fill, 1, 0);
+    lv_obj_set_style_bg_opa(s_batt_fill, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(s_batt_fill, COL_INK3, 0);
+    lv_obj_align(s_batt_fill, LV_ALIGN_LEFT_MID, 0, 0);
 
     // ---- hero: rings + cover (flex-grow region) ----
     lv_obj_t *hero = lv_obj_create(s_screen);
@@ -559,6 +589,27 @@ void now_playing_update(const now_playing_vm_t *vm)
     // ---- glassy banner (disconnected only; V1's dim scrim is gone) ----
     if (disc) lv_obj_clear_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
     else      lv_obj_add_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
+
+    // ---- battery indicator ----
+    if (!vm->battery_present) {
+        lv_obj_add_flag(s_batt_box, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_batt_label, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_clear_flag(s_batt_box, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(s_batt_label, LV_OBJ_FLAG_HIDDEN);
+
+        int pct = vm->battery_percent;
+        if (pct < 0) pct = 0; else if (pct > 100) pct = 100;
+        lv_label_set_text_fmt(s_batt_label, "%d%%", pct);
+        lv_obj_set_width(s_batt_fill, lv_pct(pct < 8 ? 8 : pct)); // keep a sliver visible
+
+        lv_color_t c;
+        if (vm->charging)             c = lv_color_hex(0x5AD17A); // green
+        else if (pct <= BATTERY_LOW_PCT) c = lv_color_hex(0xF59E0B); // amber
+        else                          c = COL_INK3;               // normal
+        lv_obj_set_style_bg_color(s_batt_fill, c, 0);
+        lv_obj_set_style_text_color(s_batt_label, c, 0);
+    }
 }
 
 void now_playing_set_emit(emit_cb_t cb) { s_emit = cb; }
