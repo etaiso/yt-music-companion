@@ -10,8 +10,9 @@ All the knobs for the board firmware and the host bridge, in one place.
 
 ## Firmware (build-time, Kconfig)
 
-The board is configured at **build time** — there is no runtime settings screen. Open
-the menu with:
+The board is configured mostly at **build time** — there is no general settings screen,
+though brightness can now be adjusted live from the swipe-down on-device panel (it
+persists to NVS). Open the build-time menu with:
 
 ```sh
 cd firmware
@@ -28,7 +29,7 @@ All options live under the **"YT Music board"** menu:
 |--------|-----|---------|-------|
 | Use live network feed | `YTM_USE_NET` | `y` | On: connect to the bridge over Wi-Fi. Off: drive the screen from `mock.c` for an offline hardware demo. |
 | UI theme | `YTM_THEME_DARK` / `YTM_THEME_LIGHT` | Dark | V2 Dark (near-black + album glow) or the same layout in light tokens with the glow disabled. No runtime toggle. |
-| Display brightness | `YTM_DISPLAY_BRIGHTNESS` | `40` | AMOLED brightness, 5–100%. Applied via panel command after init. Lower it if the screen is harsh. |
+| Display brightness | `YTM_DISPLAY_BRIGHTNESS` | `40` | AMOLED brightness, 5–100%. Applied via panel command. This is now the **first-boot default only** — the swipe-down on-device panel adjusts brightness live and persists the choice to NVS, which wins on later boots. Lower it if the screen is harsh. |
 | Wi-Fi SSID | `YTM_WIFI_SSID` | `changeme` | **Must be set** for the live feed — network the bridge host is on. |
 | Wi-Fi password | `YTM_WIFI_PASSWORD` | `changeme` | WPA2 passphrase; leave empty for an open network. |
 | Bridge host fallback | `YTM_BRIDGE_HOST` | `""` | Set to skip mDNS and connect straight to a host IP (e.g. `192.168.1.50`). Empty = discover via `_ytmboard._tcp`. |
