@@ -257,7 +257,9 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_t *meta = lv_obj_create(s_screen);
     lv_obj_remove_style_all(meta);
     lv_obj_set_width(meta, lv_pct(100));
-    lv_obj_set_height(meta, 84);
+    // Fits the scaled-up stack: title(33) + artist(19) + album(15) line heights
+    // + 2x6 pad_row. Was 84 for the original 29/17/13 ramp.
+    lv_obj_set_height(meta, 96);
     lv_obj_set_flex_flow(meta, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(meta, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
@@ -266,7 +268,7 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
 
     s_shim1 = lv_obj_create(meta);
     lv_obj_remove_style_all(s_shim1);
-    lv_obj_set_size(s_shim1, 200, 26);
+    lv_obj_set_size(s_shim1, 210, 30);
     lv_obj_set_style_radius(s_shim1, 8, 0);
     lv_obj_set_style_bg_opa(s_shim1, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(s_shim1, COL_LINE, 0);
@@ -274,7 +276,7 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
 
     s_shim2 = lv_obj_create(meta);
     lv_obj_remove_style_all(s_shim2);
-    lv_obj_set_size(s_shim2, 130, 16);
+    lv_obj_set_size(s_shim2, 140, 18);
     lv_obj_set_style_radius(s_shim2, 7, 0);
     lv_obj_set_style_bg_opa(s_shim2, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(s_shim2, COL_LINE, 0);
@@ -324,7 +326,7 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_clear_flag(s_prog_row, LV_OBJ_FLAG_SCROLLABLE);
 
     s_elapsed = lv_label_create(s_prog_row);
-    lv_obj_set_width(s_elapsed, 34);
+    lv_obj_set_width(s_elapsed, 40);
     lv_obj_set_style_text_align(s_elapsed, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_set_style_text_font(s_elapsed, FONT_TIME, 0);
     lv_obj_set_style_text_color(s_elapsed, COL_INK3, 0);
@@ -349,7 +351,7 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_add_event_cb(s_slider, on_slider, LV_EVENT_RELEASED, NULL);
 
     s_total = lv_label_create(s_prog_row);
-    lv_obj_set_width(s_total, 34);
+    lv_obj_set_width(s_total, 40);
     lv_obj_set_style_text_align(s_total, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_set_style_text_font(s_total, FONT_TIME, 0);
     lv_obj_set_style_text_color(s_total, COL_INK3, 0);
