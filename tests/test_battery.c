@@ -27,9 +27,10 @@ int main(void)
     CHECK(dec(0x00, 0, 50).present == false, "bit3 clear -> absent");
 
     printf("# charging = status2 bits[6:5] == 0b01\n");
-    CHECK(dec(0x08, 0x20, 50).charging == true,  "0b01 -> charging");   // 0x20 = 001 -> bits[6:5]=01
-    CHECK(dec(0x08, 0x40, 50).charging == false, "0b10 -> discharging");// 0x40 = 010
+    CHECK(dec(0x08, 0x20, 50).charging == true,  "0x20: bits[6:5]=01 -> charging");
+    CHECK(dec(0x08, 0x40, 50).charging == false, "0x40: bits[6:5]=10 -> discharging");
     CHECK(dec(0x08, 0x00, 50).charging == false, "0b00 -> not charging");
+    CHECK(dec(0x00, 0x20, 50).charging == false, "charge bits set but absent -> not charging");
 
     printf("# percent passthrough + clamp 0..100\n");
     CHECK(dec(0x08, 0, 73).percent == 73,  "soc 73 -> 73");

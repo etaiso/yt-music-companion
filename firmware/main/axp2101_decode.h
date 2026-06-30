@@ -19,6 +19,7 @@ extern "C" {
 #define AXP2101_REG_BAT_PERCENT 0xA4
 
 // Decode raw register bytes into out. Pure; no I/O.
+// charging is reported only when a battery is present.
 void axp2101_decode(uint8_t status1, uint8_t status2, uint8_t soc_pct,
                     battery_status_t *out);
 
