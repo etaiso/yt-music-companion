@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "now_playing_screen.h"
+#include "quick_panel.h"
 #include "mock.h"
 
 #define TICK_MS 33
@@ -23,6 +24,12 @@ static uint32_t millis(void)
     return (uint32_t)(ts.tv_sec * 1000u + ts.tv_nsec / 1000000u);
 }
 
+static void sim_brightness(int percent)
+{
+    printf("brightness: %d%%\n", percent);
+    fflush(stdout);
+}
+
 static void sim_emit(const char *cmd, int arg)
 {
     printf("emit: %s (%d)\n", cmd, arg);
@@ -34,6 +41,7 @@ static void tick_cb(lv_timer_t *t)
     (void)t;
     mock_tick(&s_vm, TICK_MS);
     now_playing_update(&s_vm);
+    quick_panel_set_battery(s_vm.battery_percent, s_vm.charging, s_vm.battery_present);
 }
 
 int main(void)
@@ -47,6 +55,7 @@ int main(void)
     now_playing_set_emit(sim_emit);
     mock_init(&s_vm);
     now_playing_create(lv_screen_active());
+    quick_panel_init(lv_screen_active(), sim_brightness, 40);
     now_playing_update(&s_vm);
     lv_timer_create(tick_cb, TICK_MS, NULL);
 
