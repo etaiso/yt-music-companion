@@ -12,15 +12,6 @@
 #include "now_playing_screen.h"
 #include "mock.h"
 
-// --- TEMP invalidation measurement (remove in cleanup task) ---
-static long g_inval_px;
-static long g_bucket_frames;
-static void inval_cb(lv_event_t *e)
-{
-    const lv_area_t *a = (const lv_area_t *)lv_event_get_param(e);
-    g_inval_px += (long)(a->x2 - a->x1 + 1) * (long)(a->y2 - a->y1 + 1);
-}
-
 #define TICK_MS 33
 
 static now_playing_vm_t s_vm;
@@ -50,8 +41,7 @@ int main(void)
     lv_init();
     lv_tick_set_cb(millis);
 
-    lv_display_t *disp = lv_sdl_window_create(480, 480);
-    lv_display_add_event_cb(disp, inval_cb, LV_EVENT_INVALIDATE_AREA, NULL);  // TEMP
+    lv_sdl_window_create(480, 480);
     lv_sdl_mouse_create();
 
     now_playing_set_emit(sim_emit);
@@ -69,15 +59,6 @@ int main(void)
         uint32_t idle = lv_timer_handler();
         if (idle == LV_NO_TIMER_READY) idle = 5;
         usleep((idle ? idle : 1) * 1000);
-        // TEMP: report average invalidated px/frame every 30 frames.
-        if (++g_bucket_frames >= 30) {
-            printf("inval@frame%ld: %ld px / %ld frames = %ld px/frame\n",
-                   frames, g_inval_px, g_bucket_frames,
-                   g_inval_px / g_bucket_frames);
-            g_inval_px = 0;
-            g_bucket_frames = 0;
-            fflush(stdout);
-        }
         if (max_frames && ++frames >= max_frames) {
             printf("headless: %ld frames rendered, exiting.\n", frames);
             break;
