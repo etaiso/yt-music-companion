@@ -9,8 +9,10 @@ static lv_obj_t       *s_pct;        // "NN%" beside the slider
 static lv_obj_t       *s_batt_echo;  // "Battery NN% · charging"
 static brightness_cb_t s_cb;
 
-// While open, the full-screen top-layer backdrop captures touches, so the
-// gesture never bubbles down to `screen` — a swipe can't re-fire open_panel().
+// While open, the full-screen top-layer backdrop captures gestures (they don't
+// bubble to `screen`), so gesture_cb is registered on the backdrop too — that's
+// how swipe-up-to-close reaches us. open/close on the already-correct state are
+// harmless no-ops.
 static void open_panel(void)  { lv_obj_clear_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN); }
 static void close_panel(void) { lv_obj_add_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN); }
 
@@ -32,7 +34,8 @@ static void gesture_cb(lv_event_t *e)
 {
     (void)e;
     lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_active());
-    if (dir == LV_DIR_BOTTOM) open_panel();
+    if (dir == LV_DIR_BOTTOM)      open_panel();
+    else if (dir == LV_DIR_TOP)    close_panel();
 }
 
 void quick_panel_init(lv_obj_t *screen, brightness_cb_t cb, int initial_percent)
@@ -52,6 +55,7 @@ void quick_panel_init(lv_obj_t *screen, brightness_cb_t cb, int initial_percent)
     lv_obj_add_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(s_backdrop, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(s_backdrop, backdrop_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(s_backdrop, gesture_cb, LV_EVENT_GESTURE, NULL);  // swipe-up closes
 
     // the sheet
     s_panel = lv_obj_create(s_backdrop);
