@@ -136,6 +136,8 @@ void ring_viz_breathe(ring_viz_t *rv, bool active)
             for (int i = 0; i < RING_COUNT; i++)
                 lv_obj_set_style_border_opa(s_rings[i], ring_opa(i, STATIC_LEVEL), 0);
             was_active = false;
+            calls = 0;   // restart breath from rest (sin phase 0) on next play
+            steps = 0;
         }
         return;
     }
