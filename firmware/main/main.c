@@ -77,16 +77,19 @@ static int brightness_load(void)
 
 static void brightness_save(int pct)
 {
+    static int last_saved = -1;
+    if (pct == last_saved) return;
     nvs_handle_t h;
     if (nvs_open(NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
         nvs_set_i32(h, NVS_KEY_BRIGHT, pct);
         nvs_commit(h);
         nvs_close(h);
+        last_saved = pct;
     }
 }
 
 static esp_timer_handle_t s_bright_timer;
-static int                s_pending_bright;
+static volatile int       s_pending_bright;
 
 static void bright_save_cb(void *arg)   // fires 500 ms after the last change
 {
