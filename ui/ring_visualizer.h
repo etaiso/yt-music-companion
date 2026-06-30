@@ -1,8 +1,10 @@
-// ring_visualizer.h — the signature concentric audio rings (SPEC §5, §6)
+// ring_visualizer.h — the signature concentric rings (SPEC §5, §6)
 //
-// 3-4 concentric rings in the brand gradient palette, behind/around the cover.
-// Driven by a normalized energy `level` (0..1); inner rings react more strongly.
-// Honors a reduce-motion fallback (gentle timed pulse instead of energy).
+// 3 concentric rings in the brand gradient palette, behind/around the cover,
+// drawn as a STATIC halo (fixed radii/opacity). Recolored per track from the
+// album palette. The rings used to pulse with audio energy, but on the board's
+// software/PSRAM renderer animating them every frame tanked FPS and touch
+// responsiveness, so they are now drawn once and left still.
 #pragma once
 
 #include "lvgl.h"
@@ -22,15 +24,10 @@ typedef struct {
 ring_viz_t ring_viz_create(lv_obj_t *parent, int box);
 
 // Recolor the ring strokes from a derived album palette (slice 5): the three
-// ordered stops (light -> mid -> accent) map inner -> outer, and the peak-ripple
-// echo takes the accent. Pass NULL (or PALETTE_NEUTRAL) for the no-art states
-// (ad / idle / disconnected). Cheap — call ONCE per track change, not per frame.
+// ordered stops (light -> mid -> accent) map inner -> outer. Pass NULL (or
+// PALETTE_NEUTRAL) for the no-art states (ad / idle / disconnected). Cheap —
+// call ONCE per track change, not per frame.
 void ring_viz_set_palette(ring_viz_t *rv, const palette_t *pal);
-
-// Update the rings for this frame. `level` 0..1 drives ring radius/alpha/width
-// (V2 geometry: 3 concentric arcs in the album palette, ripples on peaks).
-// `reduce_motion` ignores `level` and uses a gentle timed pulse instead.
-void ring_viz_update(ring_viz_t *rv, float level, bool reduce_motion);
 
 #ifdef __cplusplus
 }

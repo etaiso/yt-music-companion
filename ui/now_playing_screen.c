@@ -39,6 +39,16 @@ static const void *s_pal_key;      // cover_img for the palette in effect (NULL 
 
 static void emit(const char *cmd, int arg) { if (s_emit) s_emit(cmd, arg); }
 
+// lv_label_set_text has no "unchanged text" short-circuit — it reallocs and
+// re-invalidates on every call (LVGL set_text_internal). now_playing_update runs
+// at the frame rate, so set text only when it actually changed; otherwise every
+// label re-composites the upscaled ambient glow beneath it ~30x/sec, which
+// (with the board's software/PSRAM renderer) starves the render + touch loop.
+static void set_text(lv_obj_t *l, const char *t)
+{
+    if (strcmp(lv_label_get_text(l), t) != 0) lv_label_set_text(l, t);
+}
+
 // Re-derive the album palette only when the art behind it changes — once per
 // track change, not per frame (palette_derive downsamples the whole cover, and
 // the ambient glow repaints its whole canvas). Both the rings and the static
@@ -185,9 +195,12 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
 
     s_ring = ring_viz_create(hero, 360);
     lv_obj_add_flag(s_ring.cont, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
-    // Raise the ring/cover center so the cover sits high on the screen (V2 design
-    // cy ~188 of 480), leaving room for the title block below.
-    lv_obj_align(s_ring.cont, LV_ALIGN_CENTER, 0, -30);
+    // Center the ring/cover in the hero region, matching the design where the
+    // cover is flex-centered in this band (NowPlayingDeviceV2 hero center ~147 of
+    // 480). A prior -30 nudge pushed the cover top under the bezel curve, so it
+    // read as cut off at the top; the rings still bleed past the top edge by
+    // design (OVERFLOW_VISIBLE), but the solid cover now clears it.
+    lv_obj_align(s_ring.cont, LV_ALIGN_CENTER, 0, 0);
 
     // Default cover fill (a neutral block sits behind real art until it loads).
     lv_obj_set_style_bg_opa(s_ring.cover_slot, LV_OPA_COVER, 0);
@@ -239,6 +252,9 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     // line that grows out of the fixed-height meta box into the progress row.
     // SCROLL_CIRCULAR keeps the title to one line (scrolls if it overflows 340).
     lv_label_set_long_mode(s_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    // LVGL's default marquee speed is a sluggish 40 px/s; scroll at ~85 px/s so a
+    // long title reads at a natural pace (clamped 0.3-8 s per cycle).
+    lv_obj_set_style_anim_duration(s_title, lv_anim_speed_clamped(85, 300, 8000), 0);
     lv_obj_set_style_text_align(s_title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(s_title, FONT_TITLE, 0);
     lv_obj_set_style_text_color(s_title, COL_INK, 0);
@@ -394,42 +410,54 @@ void now_playing_update(const now_playing_vm_t *vm)
     bool paused    = vm->playback == PB_PAUSED && !ad && !empty && !disc;
     bool playing   = vm->playback == PB_PLAYING && !ad && !empty && !disc;
 
-    // ---- rings (always drawn; level varies by state, color tracks the album) ----
+    // ---- "playing" dot pulse: a tiny 8x8 per-frame animation, kept ahead of the
+    // change-gate below so the indicator keeps breathing without a full rebuild.
+    if (playing) {
+        float a = 0.65f + 0.35f * sinf((float)s_pulse * 0.18f);
+        lv_obj_set_style_bg_opa(s_state_dot, (lv_opa_t)(a * 255), 0);
+    }
+
+    // ---- change-gate ------------------------------------------------------
+    // The feed calls this at ~30 fps, but the VM is almost always identical
+    // frame-to-frame. Rebuilding the widget tree every tick re-invalidated the
+    // cover/meta/progress band, and each invalidated region re-composited the
+    // software-upscaled ambient glow beneath it — which tanked FPS and starved
+    // touch on the board. So skip the rebuild unless something the screen
+    // actually renders changed. `level` (audio energy) drives nothing on screen
+    // now that the rings are a static halo, so ignore it. Buffering animates a
+    // shimmer every frame, so it is never gated out.
+    static now_playing_vm_t s_last;
+    static bool s_have_last;
+    now_playing_vm_t cur;
+    memcpy(&cur, vm, sizeof cur);
+    cur.level = 0.0f;
+    if (!buffering && s_have_last && memcmp(&s_last, &cur, sizeof cur) == 0)
+        return;
+    memcpy(&s_last, &cur, sizeof s_last);
+    s_have_last = true;
+
+    // ---- rings: a static halo; only recolor when the album palette changes ----
     // no_art uses the neutral palette for ad/idle/disconnected (no usable art):
     // ad/empty paint the gradient cover block, disconnected may hold stale art.
     refresh_palette(vm, ad || empty || disc);
-    float lvl;
-    if (playing)        lvl = vm->level;       // mock/bridge energy
-    else if (paused)    lvl = 0.16f;
-    else                lvl = 0.06f;
-    ring_viz_update(&s_ring, lvl, false /* reduce_motion */);
 
     // ---- status bar ----
-    lv_label_set_text(s_src_label,
-        vm->source_name[0] ? vm->source_name : "YOUTUBE MUSIC");
-    if (playing) {
-        lv_obj_set_style_bg_color(s_state_dot, COL_PINK, 0);
-        lv_obj_set_style_text_color(s_state_label, COL_PINK, 0);
-        lv_label_set_text(s_state_label, "PLAYING");
-        // dot pulse
-        float a = 0.65f + 0.35f * sinf((float)s_pulse * 0.18f);
-        lv_obj_set_style_bg_opa(s_state_dot, (lv_opa_t)(a * 255), 0);
-    } else if (disc) {
-        lv_obj_set_style_bg_opa(s_state_dot, LV_OPA_COVER, 0);
-        lv_obj_set_style_bg_color(s_state_dot, COL_DANGER, 0);
-        lv_obj_set_style_text_color(s_state_label, COL_DANGER, 0);
-        lv_label_set_text(s_state_label, "OFFLINE");
-    } else {
-        lv_obj_set_style_bg_opa(s_state_dot, LV_OPA_COVER, 0);
-        lv_obj_set_style_bg_color(s_state_dot, COL_INK4, 0);
-        lv_obj_set_style_text_color(s_state_label, COL_INK3, 0);
-        lv_label_set_text(s_state_label,
-            buffering ? "BUFFERING" : paused ? "PAUSED" : ad ? "AD" : "IDLE");
-    }
+    set_text(s_src_label, vm->source_name[0] ? vm->source_name : "YOUTUBE MUSIC");
+
+    int mode = playing ? 0 : disc ? 1 : 2;   // 0 playing, 1 offline, 2 other
+    lv_color_t dot = mode == 0 ? COL_PINK : mode == 1 ? COL_DANGER : COL_INK4;
+    lv_color_t txt = mode == 0 ? COL_PINK : mode == 1 ? COL_DANGER : COL_INK3;
+    lv_obj_set_style_bg_color(s_state_dot, dot, 0);
+    lv_obj_set_style_text_color(s_state_label, txt, 0);
+    if (mode != 0) lv_obj_set_style_bg_opa(s_state_dot, LV_OPA_COVER, 0);
+    set_text(s_state_label,
+        mode == 0 ? "PLAYING" : mode == 1 ? "OFFLINE" :
+        buffering ? "BUFFERING" : paused ? "PAUSED" : ad ? "AD" : "IDLE");
 
     // ---- cover: real art, or the neutral music_note block (ad / empty) ----
     bool gradient_cover = empty || ad;
     bool have_art = vm->cover_img && !gradient_cover;
+
     if (gradient_cover) {
         lv_obj_set_style_bg_color(s_ring.cover_slot, COL_COVER_A, 0);
         lv_obj_set_style_bg_grad_color(s_ring.cover_slot, COL_COVER_B, 0);
@@ -464,19 +492,31 @@ void now_playing_update(const now_playing_vm_t *vm)
         lv_obj_add_flag(s_shim2, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(s_title, LV_OBJ_FLAG_HIDDEN);
 
-        lv_label_set_text(s_title,
+        // Marquee only while actually playing; freeze the title (static, with an
+        // ellipsis if it overflows) when paused/idle/disconnected so a stopped
+        // screen isn't animating. Guard the switch so a data-driven refresh
+        // mid-playback doesn't restart the scroll from the top.
+        lv_label_long_mode_t want = playing ? LV_LABEL_LONG_SCROLL_CIRCULAR
+                                            : LV_LABEL_LONG_DOT;
+        static lv_label_long_mode_t s_title_long = LV_LABEL_LONG_CLIP;  // != either
+        if (want != s_title_long) {
+            s_title_long = want;
+            lv_label_set_long_mode(s_title, want);
+        }
+
+        set_text(s_title,
             empty ? "Nothing playing right now" :
             ad    ? "Advertisement" : vm->title);
 
         bool show_meta = (playing || paused || disc);
         if (show_meta && vm->artist[0]) {
-            lv_label_set_text(s_artist, vm->artist);
+            set_text(s_artist, vm->artist);
             lv_obj_clear_flag(s_artist, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(s_artist, LV_OBJ_FLAG_HIDDEN);
         }
         if (show_meta && vm->album[0]) {
-            lv_label_set_text(s_album, vm->album);
+            set_text(s_album, vm->album);
             lv_obj_clear_flag(s_album, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(s_album, LV_OBJ_FLAG_HIDDEN);
@@ -490,12 +530,12 @@ void now_playing_update(const now_playing_vm_t *vm)
         lv_obj_clear_flag(s_prog_row, LV_OBJ_FLAG_HIDDEN);
         char buf[16];
         if (vm->is_live) {
-            lv_label_set_text(s_elapsed, "LIVE");
-            lv_label_set_text(s_total, "");
+            set_text(s_elapsed, "LIVE");
+            set_text(s_total, "");
             lv_slider_set_value(s_slider, 100, LV_ANIM_OFF);
         } else {
-            fmt_time(buf, sizeof buf, vm->position_sec); lv_label_set_text(s_elapsed, buf);
-            fmt_time(buf, sizeof buf, vm->duration_sec); lv_label_set_text(s_total, buf);
+            fmt_time(buf, sizeof buf, vm->position_sec); set_text(s_elapsed, buf);
+            fmt_time(buf, sizeof buf, vm->duration_sec); set_text(s_total, buf);
             int dur = vm->duration_sec > 0 ? vm->duration_sec : 1;
             lv_slider_set_range(s_slider, 0, dur);
             if (!s_user_seeking)
@@ -507,11 +547,10 @@ void now_playing_update(const now_playing_vm_t *vm)
     }
 
     // ---- play/pause glyph ----
-    lv_label_set_text(s_play_label,
-        (playing || buffering) ? IC_PAUSE : IC_PLAY);
+    set_text(s_play_label, (playing || buffering) ? IC_PAUSE : IC_PLAY);
 
     // ---- like: filled+pink when favorited, outline+grey otherwise ----
-    lv_label_set_text(s_like_label, IC_LIKE);
+    set_text(s_like_label, IC_LIKE);
     lv_obj_set_style_text_font(s_like_label,
         vm->is_favorite ? FONT_ICONS : FONT_ICONS_LINE, 0);
     lv_obj_set_style_text_color(s_like_label,
