@@ -111,6 +111,11 @@ static lv_obj_t *icon_btn(lv_obj_t *parent, const char *sym, int size,
     lv_obj_set_size(btn, size, size);
     lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
+    // The transport row lays the buttons out SPACE_BETWEEN, leaving ~30px dead
+    // gaps between 56px targets on a ~46mm panel — taps that land in a gap miss.
+    // Extend the hit area 15px per side so neighbours' hitboxes meet (15+15=gap)
+    // without overlapping; the visual stays the design size.
+    lv_obj_set_ext_click_area(btn, 15);
     lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *lbl = lv_label_create(btn);
@@ -348,6 +353,7 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_set_style_shadow_opa(play, LV_OPA_40, 0);
     lv_obj_set_style_shadow_width(play, 30, 0);
     lv_obj_set_style_shadow_offset_y(play, 12, 0);
+    lv_obj_set_ext_click_area(play, 15);   // close the gaps to prev/next (see icon_btn)
     lv_obj_add_event_cb(play, on_play, LV_EVENT_CLICKED, NULL);
     s_play_label = lv_label_create(play);
     lv_label_set_text(s_play_label, IC_PAUSE);
@@ -416,12 +422,6 @@ void now_playing_update(const now_playing_vm_t *vm)
         float a = 0.65f + 0.35f * sinf((float)s_pulse * 0.18f);
         lv_obj_set_style_bg_opa(s_state_dot, (lv_opa_t)(a * 255), 0);
     }
-
-    // ---- ring breath: a subtle opacity pulse on the halo while playing, kept
-    // ahead of the change-gate (like the dot pulse above) so it animates without
-    // a full widget rebuild. Opacity-only + throttled; settles to the static halo
-    // when not playing. See ring_viz_breathe.
-    ring_viz_breathe(&s_ring, playing);
 
     // ---- change-gate ------------------------------------------------------
     // The feed calls this at ~30 fps, but the VM is almost always identical

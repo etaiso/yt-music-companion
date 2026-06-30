@@ -1,7 +1,20 @@
 # Ring breath animation — design
 
 **Date:** 2026-06-30
-**Status:** Implemented
+**Status:** Reverted (2026-06-30)
+
+> **Reverted.** On-device testing showed the breath starved touch input *while
+> playing* — taps on the transport buttons were dropped and had to be repeated.
+> The sim "within budget" measurement (~13.8k px/frame) did not predict the
+> device's touch starvation: each accepted breath update invalidates a ring's
+> full bounding box (~50k px) and re-composites the 4×-upscaled glow + vignette
+> beneath it on the no-2D-accel PSRAM renderer, periodically blocking the LVGL
+> task that also polls touch. The breath was also imperceptible (~10% alpha
+> swing on two thin rings over 6 s). It paid the full render cost for no visible
+> benefit, so `ring_viz_breathe` was removed and the rings are a static halo
+> again (0 px/frame in every state). Any future ambient motion must avoid
+> per-frame repaints in the ring band — see the perf model. Original design
+> below, kept for context.
 
 ## Goal
 
