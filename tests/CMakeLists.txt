@@ -38,3 +38,16 @@ if(NOT MSVC)
 endif()
 
 add_test(NAME ambient COMMAND test_ambient)
+
+# AXP2101 decode: pure C (no LVGL/ESP), compiled standalone.
+add_executable(test_battery
+    test_battery.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main/axp2101_decode.c
+)
+target_include_directories(test_battery PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main)
+
+if(NOT MSVC)
+    target_compile_options(test_battery PRIVATE -Wall -Wextra)
+endif()
+
+add_test(NAME battery COMMAND test_battery)
