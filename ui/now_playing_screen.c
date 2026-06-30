@@ -417,6 +417,12 @@ void now_playing_update(const now_playing_vm_t *vm)
         lv_obj_set_style_bg_opa(s_state_dot, (lv_opa_t)(a * 255), 0);
     }
 
+    // ---- ring breath: a subtle opacity pulse on the halo while playing, kept
+    // ahead of the change-gate (like the dot pulse above) so it animates without
+    // a full widget rebuild. Opacity-only + throttled; settles to the static halo
+    // when not playing. See ring_viz_breathe.
+    ring_viz_breathe(&s_ring, playing);
+
     // ---- change-gate ------------------------------------------------------
     // The feed calls this at ~30 fps, but the VM is almost always identical
     // frame-to-frame. Rebuilding the widget tree every tick re-invalidated the
