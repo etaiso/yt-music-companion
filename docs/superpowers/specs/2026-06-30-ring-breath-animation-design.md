@@ -1,7 +1,7 @@
 # Ring breath animation — design
 
 **Date:** 2026-06-30
-**Status:** Approved (pending spec review)
+**Status:** Implemented
 
 ## Goal
 
