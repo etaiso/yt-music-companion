@@ -74,7 +74,7 @@ void quick_panel_init(lv_obj_t *screen, brightness_cb_t cb, int initial_percent)
     // brightness row: slider + percent
     s_slider = lv_slider_create(s_panel);
     lv_obj_set_width(s_slider, lv_pct(80));
-    lv_slider_set_range(s_slider, 5, 100);
+    lv_slider_set_range(s_slider, 10, 100);
     lv_slider_set_value(s_slider, initial_percent, LV_ANIM_OFF);
     lv_obj_add_event_cb(s_slider, slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
