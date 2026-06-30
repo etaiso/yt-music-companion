@@ -26,6 +26,7 @@ find_package(SDL2 REQUIRED)
 add_executable(ytm_sim
     main_sim.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/now_playing_screen.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/quick_panel.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/ring_visualizer.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/ambient_glow.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/ambient_paint.c

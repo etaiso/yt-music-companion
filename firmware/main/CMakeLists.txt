@@ -4,6 +4,9 @@ set(UI_DIR ${CMAKE_CURRENT_LIST_DIR}/../../ui)
 idf_component_register(
     SRCS "main.c"
          "net_backend.c"
+         "battery.c"
+         "axp2101_decode.c"
+         "${UI_DIR}/quick_panel.c"
          "${UI_DIR}/now_playing_screen.c"
          "${UI_DIR}/ring_visualizer.c"
          "${UI_DIR}/ambient_glow.c"
@@ -21,6 +24,7 @@ idf_component_register(
     INCLUDE_DIRS "." "${UI_DIR}"
     REQUIRES esp32_s3_touch_amoled_2_16
              esp_websocket_client esp_wifi mdns json nvs_flash esp_netif esp_event
+             esp_driver_i2c esp_timer
 )
 
 # Generated fonts (ui/mdi_*.c, ui/inter_*.c) use the lv_font_conv include
