@@ -9,6 +9,8 @@ static lv_obj_t       *s_pct;        // "NN%" beside the slider
 static lv_obj_t       *s_batt_echo;  // "Battery NN% · charging"
 static brightness_cb_t s_cb;
 
+// While open, the full-screen top-layer backdrop captures touches, so the
+// gesture never bubbles down to `screen` — a swipe can't re-fire open_panel().
 static void open_panel(void)  { lv_obj_clear_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN); }
 static void close_panel(void) { lv_obj_add_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN); }
 
@@ -35,6 +37,7 @@ static void gesture_cb(lv_event_t *e)
 
 void quick_panel_init(lv_obj_t *screen, brightness_cb_t cb, int initial_percent)
 {
+    if (s_backdrop) return;   // double-init guard: don't leak widgets / re-register the gesture
     s_cb = cb;
 
     // open gesture: a downward swipe anywhere on the screen
@@ -43,7 +46,7 @@ void quick_panel_init(lv_obj_t *screen, brightness_cb_t cb, int initial_percent)
     // backdrop on the top layer, hidden until opened
     s_backdrop = lv_obj_create(lv_layer_top());
     lv_obj_remove_style_all(s_backdrop);
-    lv_obj_set_size(s_backdrop, 480, 480);
+    lv_obj_set_size(s_backdrop, lv_pct(100), lv_pct(100));
     lv_obj_set_style_bg_color(s_backdrop, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(s_backdrop, LV_OPA_50, 0);
     lv_obj_add_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN);
@@ -85,6 +88,15 @@ void quick_panel_init(lv_obj_t *screen, brightness_cb_t cb, int initial_percent)
 void quick_panel_set_battery(int percent, bool charging, bool present)
 {
     if (!s_batt_echo) return;
+
+    // change-gated; this UI is render-bound (match the Task 3 battery widget)
+    static int  s_last_pct     = -1;
+    static bool s_last_chg     = false;
+    static int  s_last_present = -1;   // -1 = uninitialised
+    if (percent == s_last_pct && charging == s_last_chg && (int)present == s_last_present)
+        return;
+    s_last_pct = percent; s_last_chg = charging; s_last_present = (int)present;
+
     if (!present) { lv_label_set_text(s_batt_echo, "No battery"); return; }
     lv_label_set_text_fmt(s_batt_echo, "Battery %d%%%s", percent,
                           charging ? " \xC2\xB7 charging" : "");
