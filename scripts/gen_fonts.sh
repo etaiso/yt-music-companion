@@ -4,13 +4,16 @@
 # Produces ui/inter_*.c, one LVGL font per V2 type role, from the Inter
 # variable TTF. Run from the project root. Companion to gen_icons.sh.
 #
-# V2 type roles (SPEC §5 / NowPlayingDeviceV2.dc.html — pixel source of truth):
-#   title          29 / ExtraBold 800   -> inter_extrabold_29
-#   status label   12 / ExtraBold 800   -> inter_extrabold_12  (uppercase row)
-#   artist         17 / SemiBold  600   -> inter_semibold_17
-#   album          13 / SemiBold  600   -> inter_semibold_13
-#   elapsed/total  12 / SemiBold  600   -> inter_semibold_12
-#   body / default 12 / Regular   400   -> inter_regular_12   (LVGL default font)
+# V2 type roles — scaled up ~15% from the original 480px mockup sizes so the
+# panel reads at arm's length. The sim and board render an identical 480px frame;
+# the 2.16" physical panel just shows it ~3x smaller than the sim window, so the
+# mockup's px sizes felt tiny in the hand. Bracketed value = original mockup size.
+#   title          33 / ExtraBold 800   -> inter_extrabold_33  [was 29]
+#   status label   13 / ExtraBold 800   -> inter_extrabold_13  [was 12] uppercase row
+#   artist         19 / SemiBold  600   -> inter_semibold_19   [was 17]
+#   album          15 / SemiBold  600   -> inter_semibold_15   [was 13]
+#   elapsed/total  14 / SemiBold  600   -> inter_semibold_14   [was 12]
+#   body / default 12 / Regular   400   -> inter_regular_12    (LVGL default font)
 # (Inter 900 is intentionally not bundled — 800 suffices at panel scale.)
 #
 # Deps: npm i -g lv_font_conv ; pip install fonttools
@@ -33,14 +36,15 @@ trap 'rm -rf "$TMP"' EXIT
 RANGE="0x20-0x7E,0xA0-0xFF,0x2013,0x2014,0x2018,0x2019,0x201C,0x201D,0x2022,0x2026"
 
 # role|weight|optical-size|render-size
-# Inter's opsz axis floors at 14, so the 12/13px cuts instance at opsz=14 (the
-# legal minimum) while --size still rasterizes at the true role size.
+# Inter's opsz axis spans 14-32, so cuts below 14 instance at opsz=14 (the legal
+# minimum) and the 33px title clamps opsz at 32 (the max); --size still rasterizes
+# at the true role size in every case.
 ROLES="
-inter_extrabold_29|800|29|29
-inter_extrabold_12|800|14|12
-inter_semibold_17|600|17|17
-inter_semibold_13|600|14|13
-inter_semibold_12|600|14|12
+inter_extrabold_33|800|32|33
+inter_extrabold_13|800|14|13
+inter_semibold_19|600|19|19
+inter_semibold_15|600|15|15
+inter_semibold_14|600|14|14
 inter_regular_12|400|14|12
 "
 

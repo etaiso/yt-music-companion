@@ -34,11 +34,11 @@ add_executable(ytm_sim
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/mock.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/mdi_solid.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/mdi_line.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_extrabold_29.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_extrabold_12.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_semibold_17.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_semibold_13.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_semibold_12.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_extrabold_33.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_extrabold_13.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_semibold_19.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_semibold_15.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_semibold_14.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_regular_12.c
 )
 
