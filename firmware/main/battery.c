@@ -19,7 +19,7 @@ static i2c_master_dev_handle_t s_dev;
 
 static esp_err_t rd(uint8_t reg, uint8_t *val)
 {
-    return i2c_master_transmit_receive(s_dev, &reg, 1, val, 1, pdMS_TO_TICKS(100));
+    return i2c_master_transmit_receive(s_dev, &reg, 1, val, 1, 100);
 }
 
 static void poll_task(void *arg)
@@ -46,10 +46,7 @@ static void poll_task(void *arg)
 
 void battery_start(void)
 {
-    // Reuse the BSP-initialized I2C master bus (touch shares it).
-    // NOTE: confirm the BSP accessor name against the managed component; on this
-    // BSP it is bsp_i2c_get_handle(). If absent, fall back to bsp_i2c_init() +
-    // i2c_master_get_bus_handle(BSP_I2C_NUM, &bus).
+    // Reuse the BSP-initialized I2C master bus (shared with the touch controller).
     i2c_master_bus_handle_t bus = bsp_i2c_get_handle();
 
     i2c_device_config_t cfg = {
@@ -63,10 +60,15 @@ void battery_start(void)
     uint8_t cfgreg = 0;
     if (rd(AXP2101_REG_GAUGE_CFG, &cfgreg) == ESP_OK) {
         uint8_t buf[2] = { AXP2101_REG_GAUGE_CFG, (uint8_t)(cfgreg | (1u << 3)) };
-        i2c_master_transmit(s_dev, buf, 2, pdMS_TO_TICKS(100));
+        if (i2c_master_transmit(s_dev, buf, 2, 100) != ESP_OK) {
+            ESP_LOGW(TAG, "AXP2101 fuel-gauge enable failed");
+        }
     }
 
-    xTaskCreate(poll_task, "battery", 3072, NULL, 4, NULL);
+    if (xTaskCreate(poll_task, "battery", 3072, NULL, 4, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "failed to create battery poll task");
+        return;
+    }
     ESP_LOGI(TAG, "AXP2101 battery poll started (%d ms)", POLL_MS);
 }
 
