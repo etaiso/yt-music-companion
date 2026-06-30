@@ -1,6 +1,5 @@
 #include "ring_visualizer.h"
 #include "styles.h"
-#include <math.h>
 
 // Geometry transcribed from the V2 design source (NowPlayingDeviceV2.dc.html
 // canvas draw()): cover radius 86 (172px cover), baseGap 20, step 24, per-ring
@@ -112,41 +111,4 @@ void ring_viz_set_palette(ring_viz_t *rv, const palette_t *pal)
         s_color[i] = pal_color(pal->stop[i]);
         lv_obj_set_style_border_color(s_rings[i], s_color[i], 0);
     }
-}
-
-// Breath tuning. Decimate caps the update rate (now_playing_update ticks ~30 Hz,
-// so 3 -> ~10 Hz). Only the inner BREATH_RINGS rings breathe (inner rings have the
-// smallest bounding boxes -> the cheapest invalidations). Amplitude/rate are a
-// slow, gentle swing around STATIC_LEVEL.
-#define BREATH_DECIMATE 3      // push an opacity update every Nth call
-#define BREATH_RINGS    2      // inner-most N rings breathe (1..RING_COUNT)
-#define BREATH_AMPL     0.10f  // +/- level swing around STATIC_LEVEL
-#define BREATH_RATE     0.10f  // sine phase increment per accepted update
-
-void ring_viz_breathe(ring_viz_t *rv, bool active)
-{
-    (void)rv;
-    static bool     was_active;
-    static uint32_t calls;
-    static uint32_t steps;
-
-    if (!active) {
-        // Settle back to the static halo exactly once; then no per-frame cost.
-        if (was_active) {
-            for (int i = 0; i < RING_COUNT; i++)
-                lv_obj_set_style_border_opa(s_rings[i], ring_opa(i, STATIC_LEVEL), 0);
-            was_active = false;
-            calls = 0;   // restart breath from rest (sin phase 0) on next play
-            steps = 0;
-        }
-        return;
-    }
-    was_active = true;
-
-    // Throttle: only touch styles every BREATH_DECIMATE calls.
-    if (calls++ % BREATH_DECIMATE != 0) return;
-
-    float level = STATIC_LEVEL + BREATH_AMPL * sinf((float)(steps++) * BREATH_RATE);
-    for (int i = 0; i < BREATH_RINGS && i < RING_COUNT; i++)
-        lv_obj_set_style_border_opa(s_rings[i], ring_opa(i, level), 0);
 }
