@@ -83,6 +83,16 @@ On Windows, see [sim/README.md](sim/README.md) for the MSYS2 + SDL2 setup.
 
 **1. Flash the firmware** (Dark theme is the default):
 
+First **activate ESP-IDF in this terminal** — `idf.py` does not exist until you do,
+and the activation only lasts for the current shell:
+
+- **macOS/Linux:** `. ~/esp/esp-idf/export.sh`
+- **Windows:** launch the **"ESP-IDF PowerShell"** shortcut from the Start Menu (it
+  opens an already-activated shell), or dot-source the installer's init script. See
+  [docs/RUNNING.md](docs/RUNNING.md#21-install-esp-idf-one-time) for both.
+
+Then, in that same activated terminal:
+
 ```sh
 cd firmware
 idf.py menuconfig                    # REQUIRED: set Wi-Fi SSID/password under "YT Music board"
