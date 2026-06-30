@@ -90,8 +90,9 @@ cd esp-idf
 ./install.sh esp32s3
 ```
 
-That downloads the toolchain for the ESP32-S3 target. After installing, every new
-terminal session needs the environment exported:
+That downloads the toolchain for the ESP32-S3 target. After installing, **every new
+terminal session must activate the environment** — `idf.py` does not exist on your
+`PATH` until you do, and the activation only lasts for that one terminal:
 
 ```bash
 . ~/esp/esp-idf/export.sh
@@ -100,6 +101,22 @@ terminal session needs the environment exported:
 (The leading dot matters — it sources the script into your current shell. Many people
 alias this to `get_idf`.) You'll know it worked when `idf.py --version` prints a v5.5+
 version.
+
+> **Windows (ESP-IDF Tools Installer).** If you installed via the Windows installer
+> (e.g. into `C:\Espressif`) rather than `git clone`, activation works differently:
+>
+> - **Easiest:** launch the **"ESP-IDF 5.5 PowerShell"** (or "ESP-IDF CMD") shortcut
+>   from the Start Menu. It opens a shell that is *already* activated — just `cd` to
+>   the firmware dir and run `idf.py …`.
+> - **In an existing PowerShell:** dot-source the installer's init script:
+>   ```powershell
+>   . C:\Espressif\Initialize-Idf.ps1 -IdfId <your-idf-id>
+>   ```
+>   The `-IdfId` is required (find it as `idfSelectedId` in `C:\Espressif\esp_idf.json`);
+>   without it the init fails with a `null` Python path. For a `git clone` install,
+>   dot-source `export.ps1` from the esp-idf dir instead.
+>
+> Either way, `idf.py --version` printing v5.5+ confirms it worked.
 
 > macOS USB driver note: recent ESP32-S3 boards expose a native USB-Serial-JTAG
 > interface, so no extra driver is usually needed. If your board uses a USB-UART
@@ -169,8 +186,11 @@ idf.py -p <port> erase-flash      # full chip erase if things get weird
 
 ## 3. Troubleshooting
 
-**`idf.py: command not found`** — you didn't source the environment. Run
-`. ~/esp/esp-idf/export.sh` in this terminal.
+**`idf.py: command not found`** (or PowerShell's *"The term 'idf.py' is not
+recognized…"*) — you didn't activate the environment in this terminal. On
+macOS/Linux run `. ~/esp/esp-idf/export.sh`; on Windows open the "ESP-IDF PowerShell"
+Start Menu shortcut or dot-source `Initialize-Idf.ps1` (see §2.1). Activation is
+per-terminal — every new window needs it again.
 
 **Component manager can't fetch the Waveshare BSP** — needs network access on first
 build. Re-run `idf.py build`; the download is cached under `managed_components/`
