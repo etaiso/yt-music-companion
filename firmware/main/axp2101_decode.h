@@ -18,6 +18,8 @@ extern "C" {
 #define AXP2101_REG_STATUS2     0x01
 #define AXP2101_REG_GAUGE_CFG   0x18  // bit 3 enables the fuel gauge
 #define AXP2101_REG_BAT_PERCENT 0xA4
+#define AXP2101_REG_COMMON_CFG  0x10        // PMU common config
+#define AXP2101_SOFT_PWROFF_BIT (1u << 0)   // reg 0x10 bit0: software power-off
 
 // Decode raw register bytes into out. Pure; no I/O.
 // charging is reported only when a battery is present.

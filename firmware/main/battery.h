@@ -21,6 +21,11 @@ void battery_start(void);
 // Copy the latest cached reading. Safe to call from the LVGL tick.
 void battery_get(battery_status_t *out);
 
+// Hard power off the board via the AXP2101 (soft power-off, reg 0x10 bit0).
+// Returns false if the I2C write fails (caller may retry); on success the power
+// rails drop within milliseconds, so execution usually ends inside this call.
+bool battery_power_off(void);
+
 #ifdef __cplusplus
 }
 #endif
