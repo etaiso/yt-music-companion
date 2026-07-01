@@ -16,6 +16,13 @@
       "port": 8080
     },
     {
+      "name": "site",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8090"],
+      "cwd": "site",
+      "port": 8090
+    },
+    {
       "name": "firmware",
       "runtimeExecutable": "idf.py",
       "runtimeArgs": ["-p", "/dev/tty.usbmodem*", "flash", "monitor"],

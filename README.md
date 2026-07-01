@@ -4,6 +4,11 @@ A hardware companion device for **YouTube Music**. A Waveshare
 ESP32-S3-Touch-AMOLED-2.16 board acts as a polished physical UI client — showing the
 current track and sending commands (play/pause/skip/like/seek/volume).
 
+> **Requires [ytmdesktop](https://ytmdesktop.app) — this is a companion/remote, not a
+> standalone player.** The board has no audio; it mirrors and controls whatever is
+> playing in the ytmdesktop app on your PC (with its Companion Server enabled). Without
+> ytmdesktop running, the board only shows the built-in mock-data demo.
+
 <p align="center">
   <img src="docs/assets/now-playing.png" alt="Now Playing screen" width="360">
 </p>
@@ -75,8 +80,9 @@ On Windows, see [sim/README.md](sim/README.md) for the MSYS2 + SDL2 setup.
 
 - **ESP-IDF v5.5+** — to build and flash the firmware ([install guide](docs/RUNNING.md#21-install-esp-idf-one-time)).
 - **Node.js 18+** — to run the bridge.
-- **[ytmdesktop](https://ytmdesktop.app)** on the host PC, with **Companion Server** +
-  **authorization** enabled (Settings → Integration).
+- **[ytmdesktop](https://ytmdesktop.app)** on the host PC — **required** (the board is a
+  remote, not a standalone player), with **Companion Server** + **authorization** enabled
+  (Settings → Integration).
 - **A 2.4GHz Wi-Fi network** the board and host PC both share (the ESP32-S3 is 2.4GHz only).
 - **Your Wi-Fi SSID + password** — these are **mandatory** and set at build time via
   `menuconfig` (step 1); the board can't reach the bridge without them.
@@ -127,3 +133,27 @@ cover art, and controls.
 Full details: [docs/RUNNING.md](docs/RUNNING.md) (build/flash), [bridge/README.md](bridge/README.md)
 and [bridge/WINDOWS-SETUP.md](bridge/WINDOWS-SETUP.md) (running the bridge, recommended
 on Windows when the Mac is corporate-managed).
+
+## Landing page
+
+A static marketing page lives in [`site/`](site/) and is published to GitHub Pages at
+**https://etaiso.github.io/yt-music-companion/** (via [.github/workflows/pages.yml](.github/workflows/pages.yml)).
+It's a single self-contained `index.html` — no build step. Preview it locally with the
+`site` config in `.claude/launch.json`, or any static server:
+
+```sh
+cd site && python3 -m http.server 8090   # then open http://localhost:8090
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE). © 2026 Etai Solomon.
+
+Not affiliated with YouTube or Google. "YouTube Music" is a trademark of Google LLC.
+
+**Third-party assets & dependencies:**
+
+- [Inter](https://rsms.me/inter/) font — SIL Open Font License 1.1
+- [Material Symbols](https://fonts.google.com/icons) — Apache License 2.0
+- [LVGL](https://lvgl.io) — MIT License
+- [ESP-IDF](https://github.com/espressif/esp-idf) — Apache License 2.0
