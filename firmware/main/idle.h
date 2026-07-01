@@ -14,10 +14,12 @@ extern "C" {
 #endif
 
 typedef struct {
-    uint32_t dim_after_ms;        // idle time with no activity before dimming
-    int      dim_percent;         // panel brightness (%) while dimmed
-    void   (*apply)(int percent); // set panel brightness now (must NOT persist)
-    int    (*get_active)(void);   // user's current brightness (restore target)
+    uint32_t dim_after_ms;         // idle time with no activity before dimming
+    int      dim_percent;          // panel brightness (%) while dimmed
+    uint32_t power_off_after_ms;   // idle time before power-off; 0 = disabled
+    void   (*apply)(int percent);  // set panel brightness now (must NOT persist)
+    int    (*get_active)(void);    // user's current brightness (restore target)
+    bool   (*power_off)(void);     // issue power-off; return true if issued (no retry)
 } idle_cfg_t;
 
 // Configure and reset the tracker. `now_ms` is a monotonic millisecond clock;
@@ -29,9 +31,11 @@ void idle_init(const idle_cfg_t *cfg, uint32_t now_ms);
 void idle_notify_activity(void);
 
 // Run one decision step. `touch_inactive_ms` = ms since the last touch
-// (LVGL's lv_display_get_inactive_time()); `now_ms` = the monotonic clock;
-// `playing` = true while audio is playing (disables dimming; restores if dimmed).
-void idle_tick(uint32_t touch_inactive_ms, uint32_t now_ms, bool playing);
+// (lv_display_get_inactive_time()); `now_ms` = the monotonic clock;
+// `playing` = true while audio is playing (disables dimming/power-off; restores
+// if dimmed); `power_off_allowed` = true only while on battery (gates power-off).
+void idle_tick(uint32_t touch_inactive_ms, uint32_t now_ms,
+               bool playing, bool power_off_allowed);
 
 // True when the screen is currently dimmed (inspection / tests).
 bool idle_is_dimmed(void);

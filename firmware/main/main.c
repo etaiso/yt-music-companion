@@ -63,9 +63,18 @@ static void tick_cb(lv_timer_t *t)
 #endif
     now_playing_update(&s_vm);
 #if CONFIG_YTM_IDLE_DIM_ENABLE
+    bool on_battery = true;
+#if CONFIG_YTM_IDLE_POWEROFF_ENABLE
+    {
+        battery_status_t pb;
+        battery_get(&pb);
+        on_battery = !pb.external_power;   // never power off while on USB/charging
+    }
+#endif
     idle_tick(lv_display_get_inactive_time(NULL),
               (uint32_t)(esp_timer_get_time() / 1000),
-              s_vm.playback == PB_PLAYING);
+              s_vm.playback == PB_PLAYING,
+              on_battery);
 #endif
     quick_panel_set_battery(s_vm.battery_percent, s_vm.charging, s_vm.battery_present);
 }
@@ -123,6 +132,16 @@ static void fw_brightness(int percent)
 // reads the user's current level so a slider change mid-idle is respected.
 static void idle_apply(int percent) { bsp_display_brightness_set(percent); }
 static int  idle_get_active(void)   { return s_active_bright; }
+
+#if CONFIG_YTM_IDLE_POWEROFF_ENABLE
+// Idle power-off: blank the panel, then AXP2101 soft power-off. Returns false if
+// the I2C write fails so idle_tick retries; on success the rails drop within ms.
+static bool idle_power_off(void)
+{
+    bsp_display_brightness_set(0);
+    return battery_power_off();
+}
+#endif
 #endif
 
 void app_main(void)
@@ -172,6 +191,13 @@ void app_main(void)
     idle_cfg_t icfg = {
         .dim_after_ms = CONFIG_YTM_IDLE_DIM_MS,
         .dim_percent  = CONFIG_YTM_IDLE_DIM_PERCENT,
+#if CONFIG_YTM_IDLE_POWEROFF_ENABLE
+        .power_off_after_ms = CONFIG_YTM_IDLE_POWEROFF_MS,
+        .power_off          = idle_power_off,
+#else
+        .power_off_after_ms = 0,
+        .power_off          = NULL,
+#endif
         .apply        = idle_apply,
         .get_active   = idle_get_active,
     };
