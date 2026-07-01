@@ -24,7 +24,6 @@
     <div style="position:absolute;inset:-12%;animation:np2-amb 14s ease-in-out infinite;background:{{ ambientBg }};"></div>
     <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,7,9,0) 28%,rgba(7,7,9,.55) 74%,rgba(7,7,9,.9) 100%);"></div>
 
-    <canvas ref="{{ canvasRef }}" width="480" height="480" style="position:absolute;inset:0;width:480px;height:480px;"></canvas>
 
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:24px 28px 22px;box-sizing:border-box;">
 
@@ -196,6 +195,7 @@ class Component extends DCLogic {
     const ctx = cv.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
+    return;
     let cx = W / 2, cy = 188, cr = 86;
     const cover = this.coverRef.current;
     if (cover) {

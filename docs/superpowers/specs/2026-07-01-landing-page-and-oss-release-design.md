@@ -81,6 +81,22 @@ commit. User may switch methods before Phase 2 runs.
 - License: **MIT**.
 - History method: **surgical rewrite** (preserve commits).
 
+## Update — design revision (2026-07-01)
+
+The user pushed a revised handoff. Applied to `site/index.html` and the archived
+bundle:
+
+- **Ring visualizer removed** — the design dropped the canvas ring from the device
+  (and the "Reactive ring visualizer" feature card). `mountDevice()` is now static;
+  all the ring/`requestAnimationFrame` code is gone. (This obsoletes the earlier
+  "ported canvas ring" note above.)
+- **ytmdesktop emphasized** — "Required" pill on the How-it-works card, stronger copy,
+  and a new "Prerequisite for live music" callout in Get started.
+- **New feature card** — "Brightness & battery saving" (`brightness_medium`).
+- **Gallery captions** reworded away from the ring ("Live track & art blitted",
+  "Dimmed idle state").
+- **Tech stack** — hardware is now a link to Waveshare + "other ESP32‑S3 targets may work".
+
 ## Implementation checklist
 
 - [ ] Copy design bundle into `design/youtube-music-companion-landing-page/`

@@ -136,9 +136,9 @@
         <div style="width:46px;height:46px;border-radius:13px;background:rgba(129,140,248,.14);border:1px solid rgba(129,140,248,.3);display:flex;align-items:center;justify-content:center;margin-bottom:18px;">
           <span class="ms" style="font-size:26px;color:#a5b4fc;">desktop_windows</span>
         </div>
-        <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.42);margin-bottom:6px;">Mac / Windows</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.42);">Mac / Windows</div><span style="font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#f472b6;background:rgba(244,114,182,.14);border:1px solid rgba(244,114,182,.3);padding:2px 7px;border-radius:999px;">Required</span></div>
         <div style="font-size:20px;font-weight:800;letter-spacing:-.3px;margin-bottom:8px;">ytmdesktop</div>
-        <p style="margin:0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.58);">Plays the audio and exposes the live player state through its Companion Server.</p>
+        <p style="margin:0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.58);">The free desktop app plays the audio and exposes live player state via its Companion Server. The board can't work without it.</p>
       </div>
 
       <div class="lp-arrow" style="display:flex;align-items:center;padding:0 10px;color:rgba(255,255,255,.32);">
@@ -183,11 +183,6 @@
 
     <div class="lp-features" style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
       <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px;">
-        <span class="ms" style="font-size:30px;color:#c084fc;font-variation-settings:'FILL' 1;">graphic_eq</span>
-        <div style="font-size:18px;font-weight:800;letter-spacing:-.3px;margin:16px 0 8px;">Reactive ring visualizer</div>
-        <p style="margin:0;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">A halo that breathes around the cover, driven live by the player state and cover palette.</p>
-      </div>
-      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px;">
         <span class="ms" style="font-size:30px;color:#a5b4fc;font-variation-settings:'FILL' 1;">memory</span>
         <div style="font-size:18px;font-weight:800;letter-spacing:-.3px;margin:16px 0 8px;">Pure UI client</div>
         <p style="margin:0;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">The ESP32‑S3 is BLE-only, so playback and decoding stay on the host. The board just renders and controls.</p>
@@ -212,6 +207,11 @@
         <div style="font-size:18px;font-weight:800;letter-spacing:-.3px;margin:16px 0 8px;">Themeable by token swap</div>
         <p style="margin:0;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">Dark AMOLED first, with a warm-cream variant that swaps the whole palette through one token table.</p>
       </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px;">
+        <span class="ms" style="font-size:30px;color:#a5b4fc;font-variation-settings:'FILL' 1;">brightness_medium</span>
+        <div style="font-size:18px;font-weight:800;letter-spacing:-.3px;margin:16px 0 8px;">Brightness &amp; battery saving</div>
+        <p style="margin:0;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">Tune screen brightness to taste, and let it auto-dim then power off the panel when idle to sip battery.</p>
+      </div>
     </div>
   </section>
 
@@ -225,14 +225,14 @@
           <div class="lp-gallery-device" data-mode="playing" data-cover="tides" data-title="Coastlines" data-artist="Marlowe Gray" data-album="Tidal · Album" style="width:500px;height:500px;transform:scale(.6);transform-origin:top left;"></div>
         </div>
         <div style="margin-top:16px;font-size:15px;font-weight:700;">Playing</div>
-        <div style="font-size:13px;color:rgba(255,255,255,.5);">Ring alive, art blitted</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);">Live track &amp; art blitted</div>
       </div>
       <div style="text-align:center;">
         <div style="width:300px;height:300px;overflow:hidden;border-radius:32px;box-shadow:0 22px 50px rgba(0,0,0,.45);">
           <div class="lp-gallery-device" data-mode="paused" data-cover="lanterns" data-title="Field Notes" data-artist="Yumi &amp; the Hours" data-album="Field Notes · Album" style="width:500px;height:500px;transform:scale(.6);transform-origin:top left;"></div>
         </div>
         <div style="margin-top:16px;font-size:15px;font-weight:700;">Paused</div>
-        <div style="font-size:13px;color:rgba(255,255,255,.5);">Ring settles, dim state</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);">Dimmed idle state</div>
       </div>
       <div style="text-align:center;">
         <div style="width:300px;height:300px;overflow:hidden;border-radius:32px;box-shadow:0 22px 50px rgba(0,0,0,.45);">
@@ -249,8 +249,8 @@
     <div class="lp-tech" style="border:1px solid rgba(255,255,255,.09);border-radius:26px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));padding:44px 40px;display:grid;grid-template-columns:repeat(4,1fr);gap:36px;">
       <div>
         <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#c084fc;margin-bottom:12px;">Hardware</div>
-        <div style="font-size:16px;font-weight:700;line-height:1.35;">Waveshare ESP32‑S3‑Touch‑AMOLED‑2.16</div>
-        <div style="font-size:13.5px;color:rgba(255,255,255,.5);margin-top:6px;">480×480 CO5300 QSPI panel</div>
+        <a href="https://www.waveshare.com/esp32-s3-touch-amoled-2.16.htm" target="_blank" rel="noopener" style="font-size:16px;font-weight:700;line-height:1.35;color:#fff;text-decoration:none;border-bottom:1px solid rgba(192,132,252,.5);">Waveshare ESP32‑S3‑Touch‑AMOLED‑2.16</a>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.5);margin-top:6px;">Tested on this board; other ESP32‑S3 targets may work</div>
       </div>
       <div>
         <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#c084fc;margin-bottom:12px;">Firmware</div>
@@ -274,7 +274,12 @@
   <section id="start" class="lp-section" style="position:relative;z-index:2;max-width:1200px;margin:0 auto;padding:70px 40px 40px;">
     <div style="text-align:center;margin-bottom:14px;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#c084fc;">Get started</div>
     <h2 style="text-align:center;margin:0 0 12px;font-size:clamp(28px,5vw,38px);font-weight:900;letter-spacing:-1px;">Two ways to run it</h2>
-    <p style="text-align:center;margin:0 auto 56px;max-width:520px;font-size:17px;line-height:1.5;color:rgba(255,255,255,.6);">Try the whole UI in a desktop simulator with no hardware, or flash the real board and feed it live music.</p>
+    <p style="text-align:center;margin:0 auto 32px;max-width:520px;font-size:17px;line-height:1.5;color:rgba(255,255,255,.6);">Try the whole UI in a desktop simulator with no hardware, or flash the real board and feed it live music.</p>
+
+    <div style="max-width:720px;margin:0 auto 40px;display:flex;align-items:flex-start;gap:12px;padding:16px 20px;border:1px solid rgba(244,114,182,.28);border-radius:16px;background:rgba(244,114,182,.06);">
+      <span class="ms" style="font-size:22px;color:#f472b6;flex:none;font-variation-settings:'FILL' 1;">priority_high</span>
+      <div style="font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.72);"><strong style="color:#fff;font-weight:700;">Prerequisite for live music:</strong> the <a href="https://ytmdesktop.app" target="_blank" rel="noopener" style="color:#f9a8d4;font-weight:600;text-decoration:none;">ytmdesktop</a> app must be running on your host PC with its <strong style="color:#fff;font-weight:600;">Companion Server + authorization</strong> enabled (Settings → Integration). The board is a remote for it, not a standalone player. (The simulator needs no hardware, but still just previews the UI.)</div>
+    </div>
 
     <div class="lp-start-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
       <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:32px;">
@@ -343,9 +348,6 @@
   "use strict";
 
   var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
-  var reduced = function () {
-    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
-  };
   var fmt = function (s) {
     s = Math.max(0, Math.floor(Number(s) || 0));
     var m = Math.floor(s / 60), ss = s % 60;
@@ -357,11 +359,6 @@
       .replace(/"/g, '&quot;');
   };
 
-  var PALETTE = {
-    midnight: ['#818cf8', '#c084fc', '#f472b6'],
-    tides:    ['#67e8f9', '#22d3ee', '#a78bfa'],
-    lanterns: ['#fcd34d', '#fb923c', '#f87171']
-  };
   var AMBIENT = {
     midnight: 'radial-gradient(120% 78% at 50% 4%, #6d28d9 0%, rgba(109,40,217,0) 56%), radial-gradient(90% 60% at 78% 26%, #ec4899 0%, rgba(236,72,153,0) 50%), linear-gradient(180deg,#1b1336,#0b0718 68%,#060410)',
     tides:    'radial-gradient(120% 78% at 50% 4%, #0891b2 0%, rgba(8,145,178,0) 56%), radial-gradient(82% 58% at 74% 24%, #22d3ee 0%, rgba(34,211,238,0) 48%), linear-gradient(180deg,#06242e,#03141b 68%,#020b0e)',
@@ -404,7 +401,6 @@
     var ambientBg = (isEmpty || isAd || isDisc) ? AMBIENT_NEUTRAL : (AMBIENT[cover] || AMBIENT.midnight);
 
     var coverHtml = gradientCover ? COVER_ART.gradient : (COVER_ART[cover] || COVER_ART.midnight);
-    coverHtml = coverHtml.replace('<div ', '<div data-cover-el="1" ');
 
     var status = '';
     if (isPlaying) {
@@ -456,7 +452,6 @@
       + '<div style="position:relative;width:480px;height:480px;border-radius:44px;overflow:hidden;background:#070709;font-family:Inter,sans-serif;">'
       + '<div style="position:absolute;inset:-12%;animation:np2-amb 14s ease-in-out infinite;background:' + ambientBg + ';"></div>'
       + '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,7,9,0) 28%,rgba(7,7,9,.55) 74%,rgba(7,7,9,.9) 100%);"></div>'
-      + '<canvas data-ring-el="1" width="480" height="480" style="position:absolute;inset:0;width:480px;height:480px;"></canvas>'
       + '<div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:24px 28px 22px;box-sizing:border-box;">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;height:20px;flex:none;">'
       + '<span style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.6);">' + esc(o.source || 'YouTube Music') + '</span>'
@@ -471,92 +466,11 @@
 
   function mountDevice(el, opts) {
     el.innerHTML = deviceMarkup(opts);
-    var canvas = el.querySelector('[data-ring-el]');
-    var coverEl = el.querySelector('[data-cover-el]');
     var fillEl = el.querySelector('[data-fill-el]');
-    var mode = opts.mode || 'playing';
-    var pal = PALETTE[opts.cover || 'midnight'] || ['#9ca3af', '#d1d5db', '#9ca3af'];
-
     if (fillEl) {
       var d = Number(opts.duration) || 0;
       fillEl.style.width = (d ? clamp((Number(opts.position) || 0) / d, 0, 1) * 100 : 0) + '%';
     }
-    if (!canvas) return;
-
-    var t0 = performance.now(), ripples = [], noise = 0, lastRipple = 0, raf = 0;
-
-    function level() {
-      var t = (performance.now() - t0) / 1000;
-      if (reduced()) return 0.15 + 0.05 * Math.sin(t * 1.2);
-      if (mode === 'playing') {
-        noise += (Math.random() - 0.5) * 0.12;
-        noise *= 0.9;
-        noise = clamp(noise, -0.25, 0.25);
-        var l = 0.42 + 0.2 * Math.sin(t * 3.0) + 0.15 * Math.sin(t * 5.3 + 1) + 0.09 * Math.sin(t * 9.7 + 2) + noise * 0.6;
-        return clamp(l, 0.05, 1);
-      }
-      if (mode === 'paused') return 0.16 + 0.06 * Math.sin(t * 1.4);
-      return 0.05 + 0.02 * Math.sin(t * 0.9);
-    }
-
-    function draw() {
-      if (!canvas.isConnected) { raf = requestAnimationFrame(draw); return; }
-      var dpr = window.devicePixelRatio || 1, W = 480, H = 480;
-      if (canvas.width !== Math.round(W * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
-      var ctx = canvas.getContext('2d');
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, W, H);
-
-      // Center/radius in the canvas's own logical (480) coordinates, normalized so
-      // CSS transform scaling (the gallery devices are scaled to .6) doesn't shift the ring.
-      var cx = W / 2, cy = 188, cr = 86;
-      var pb = canvas.getBoundingClientRect();
-      var scale = pb.width ? pb.width / W : 1;
-      if (coverEl && scale) {
-        var cb = coverEl.getBoundingClientRect();
-        if (cb.width) {
-          cx = (cb.left - pb.left) / scale + (cb.width / scale) / 2;
-          cy = (cb.top - pb.top) / scale + (cb.height / scale) / 2;
-          cr = (cb.width / scale) / 2;
-        }
-      }
-
-      var lv = level();
-      var g = ctx.createLinearGradient(cx - 170, cy - 170, cx + 170, cy + 170);
-      g.addColorStop(0, pal[0]); g.addColorStop(0.5, pal[1]); g.addColorStop(1, pal[2]);
-      ctx.strokeStyle = g;
-      ctx.lineCap = 'round';
-      var amps = [18, 12, 8], baseGap = 20, step = 24;
-      for (var i = 0; i < 3; i++) {
-        var r = cr + baseGap + i * step + amps[i] * lv * 0.9;
-        ctx.globalAlpha = (0.8 - i * 0.2) * (0.4 + 0.6 * lv);
-        ctx.lineWidth = 3.6 - i * 0.7;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      var now = performance.now() / 1000;
-      if (mode === 'playing' && !reduced() && lv > 0.7 && now - lastRipple > 0.3) {
-        ripples.push({ r: cr + baseGap, life: 1 });
-        lastRipple = now;
-      }
-      for (var j = ripples.length - 1; j >= 0; j--) {
-        var rp = ripples[j];
-        rp.r += 2.8; rp.life -= 0.02;
-        if (rp.life <= 0) { ripples.splice(j, 1); continue; }
-        ctx.globalAlpha = rp.life * 0.4;
-        ctx.lineWidth = 2.4 * rp.life + 0.4;
-        ctx.beginPath();
-        ctx.arc(cx, cy, rp.r, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-      raf = requestAnimationFrame(draw);
-    }
-    // Paint one frame synchronously so the ring is visible immediately — even in a
-    // background/hidden tab (where rAF is throttled) or under reduced motion. draw()
-    // schedules the next frame itself, so the animation continues once visible.
-    draw();
   }
 
   function wireCopy(btnId, text) {
