@@ -18,6 +18,7 @@
 
 #include "battery.h"
 #include "quick_panel.h"
+#include "idle.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "esp_timer.h"
@@ -27,6 +28,7 @@ static const char *TAG = "ytm";
 #define TICK_MS 33  // ~30 fps
 
 static now_playing_vm_t s_vm;
+static int s_active_bright;   // user-chosen brightness; the idle-dim restore target
 
 #if !CONFIG_YTM_USE_NET
 // Mock build: log control intent over serial (no bridge to talk to).
@@ -57,6 +59,11 @@ static void tick_cb(lv_timer_t *t)
     }
 #endif
     now_playing_update(&s_vm);
+#if CONFIG_YTM_IDLE_DIM_ENABLE
+    idle_tick(lv_display_get_inactive_time(NULL),
+              (uint32_t)(esp_timer_get_time() / 1000),
+              s_vm.playback == PB_PLAYING);
+#endif
     quick_panel_set_battery(s_vm.battery_percent, s_vm.charging, s_vm.battery_present);
 }
 
@@ -100,11 +107,18 @@ static void bright_save_cb(void *arg)   // fires 500 ms after the last change
 
 static void fw_brightness(int percent)
 {
+    s_active_bright = percent;
     bsp_display_brightness_set(percent);   // apply immediately
     s_pending_bright = percent;
     esp_timer_stop(s_bright_timer);        // debounce flash writes
     esp_timer_start_once(s_bright_timer, 500 * 1000);
 }
+
+// Idle-dim brightness callbacks. apply() must NOT persist — dimming is
+// transient, so it goes straight to the panel and never touches NVS. Restore
+// reads the user's current level so a slider change mid-idle is respected.
+static void idle_apply(int percent) { bsp_display_brightness_set(percent); }
+static int  idle_get_active(void)   { return s_active_bright; }
 
 void app_main(void)
 {
@@ -120,6 +134,7 @@ void app_main(void)
     }
 
     int initial_bright = brightness_load();
+    s_active_bright = initial_bright;
     // AMOLED has no PWM backlight; this sends the panel's brightness command.
     // Boot value is NVS (last runtime choice) or CONFIG_YTM_DISPLAY_BRIGHTNESS on
     // first boot. Tunable live via the swipe-down panel.
@@ -147,6 +162,16 @@ void app_main(void)
     now_playing_update(&s_vm);
     lv_timer_create(tick_cb, TICK_MS, NULL);
     bsp_display_unlock();
+
+#if CONFIG_YTM_IDLE_DIM_ENABLE
+    idle_cfg_t icfg = {
+        .dim_after_ms = CONFIG_YTM_IDLE_DIM_MS,
+        .dim_percent  = CONFIG_YTM_IDLE_DIM_PERCENT,
+        .apply        = idle_apply,
+        .get_active   = idle_get_active,
+    };
+    idle_init(&icfg, (uint32_t)(esp_timer_get_time() / 1000));
+#endif
 
     ESP_LOGI(TAG, "Now Playing up (%s, %d fps).",
              CONFIG_YTM_USE_NET ? "live feed" : "mock data", 1000 / TICK_MS);
