@@ -117,11 +117,13 @@ static void fw_brightness(int percent)
     esp_timer_start_once(s_bright_timer, 500 * 1000);
 }
 
+#if CONFIG_YTM_IDLE_DIM_ENABLE
 // Idle-dim brightness callbacks. apply() must NOT persist — dimming is
 // transient, so it goes straight to the panel and never touches NVS. Restore
 // reads the user's current level so a slider change mid-idle is respected.
 static void idle_apply(int percent) { bsp_display_brightness_set(percent); }
 static int  idle_get_active(void)   { return s_active_bright; }
+#endif
 
 void app_main(void)
 {
