@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT Music Companion — a physical remote for YouTube Music</title>
+<meta name="description" content="A polished open-source AMOLED companion device for YouTube Music. Shows the track playing on your PC and sends every command over Wi-Fi. ESP32-S3, LVGL v9, ESP-IDF firmware.">
+<meta property="og:title" content="YT Music Companion">
+<meta property="og:description" content="A physical remote for YouTube Music — a polished open-source AMOLED companion for the desk.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='28' fill='%23c084fc'/%3E%3Ctext x='50' y='50' font-size='58' text-anchor='middle' dominant-baseline='central'%3E%F0%9F%8E%A7%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=swap" rel="stylesheet">
+<style>
+  @keyframes lp-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+  @keyframes lp-glowpulse { 0%,100% { opacity: .8; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+  @keyframes lp-flow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+  @keyframes np2-dotpulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(.6); } }
+  @keyframes np2-shimmer { 0% { background-position: 120% 0; } 100% { background-position: -20% 0; } }
+  @keyframes np2-amb { 0% { transform: scale(1) translate(0,0); } 50% { transform: scale(1.12) translate(-2%,1%); } 100% { transform: scale(1) translate(0,0); } }
+
+  html { scroll-behavior: smooth; }
+  body { margin: 0; }
+  * { box-sizing: border-box; }
+  ::selection { background: rgba(192,132,252,.35); }
+  .ms { font-family: 'Material Symbols Rounded'; line-height: 1; }
+
+  /* ---- Responsive (overrides the desktop inline styles) ---- */
+  @media (max-width: 960px) {
+    /* minmax(0,1fr) stops the fixed-500px device from forcing the column wide */
+    .lp-hero { grid-template-columns: minmax(0, 1fr) !important; text-align: center; gap: 8px !important; }
+    .lp-hero-copy { min-width: 0; }
+    .lp-hero-copy p { margin-left: auto !important; margin-right: auto !important; }
+    .lp-hero-visual { justify-self: center !important; min-width: 0; }
+    .lp-cta { justify-content: center; }
+    .lp-stats { justify-content: center; }
+    .lp-how { grid-template-columns: 1fr !important; gap: 16px !important; }
+    .lp-arrow { display: none !important; }
+    .lp-features { grid-template-columns: repeat(2, 1fr) !important; }
+    .lp-tech { grid-template-columns: repeat(2, 1fr) !important; }
+    .lp-start-grid { grid-template-columns: 1fr !important; }
+  }
+  @media (max-width: 620px) {
+    .lp-section, .lp-nav, .lp-footer { padding-left: 20px !important; padding-right: 20px !important; }
+    .lp-navlink { display: none !important; }
+    .lp-features { grid-template-columns: 1fr !important; }
+    .lp-tech { grid-template-columns: 1fr !important; }
+    .lp-cta { flex-direction: column !important; align-items: stretch !important; }
+    .lp-cta a { justify-content: center; }
+    .lp-stats { flex-wrap: wrap; gap: 18px !important; }
+    .lp-footer { flex-direction: column !important; gap: 18px !important; text-align: center; }
+    /* device is 500px wide; scale it down and let overflow-x:hidden clip the edges */
+    .lp-hero-visual { transform: scale(.66); transform-origin: center top; margin: -30px 0 -120px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
+  }
+</style>
+</head>
+<body>
+<div style="position:relative;background:#070709;color:#fff;font-family:Inter,system-ui,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased;">
+
+  <div style="position:absolute;top:-320px;left:50%;transform:translateX(-50%);width:1100px;height:900px;pointer-events:none;background:radial-gradient(52% 44% at 62% 20%, rgba(236,72,153,.28) 0%, rgba(236,72,153,0) 60%), radial-gradient(60% 50% at 32% 4%, rgba(109,40,217,.42) 0%, rgba(109,40,217,0) 62%);filter:blur(6px);"></div>
+
+  <!-- NAV -->
+  <nav class="lp-nav" style="position:relative;z-index:5;max-width:1200px;margin:0 auto;padding:28px 40px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:38px;height:38px;border-radius:11px;background:linear-gradient(150deg,#818cf8,#c084fc 52%,#f472b6);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(192,132,252,.4);">
+        <span class="ms" style="font-size:22px;color:#0a0a0b;font-variation-settings:'FILL' 1;">graphic_eq</span>
+      </div>
+      <span style="font-size:16px;font-weight:800;letter-spacing:-.2px;">YT Music Companion</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:34px;">
+      <a class="lp-navlink" href="#how" style="font-size:14px;font-weight:600;color:rgba(255,255,255,.62);text-decoration:none;">How it works</a>
+      <a class="lp-navlink" href="#features" style="font-size:14px;font-weight:600;color:rgba(255,255,255,.62);text-decoration:none;">Features</a>
+      <a class="lp-navlink" href="#start" style="font-size:14px;font-weight:600;color:rgba(255,255,255,.62);text-decoration:none;">Get started</a>
+      <a href="https://github.com/etaiso/yt-music-companion" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#0a0a0b;background:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;">
+        <span class="ms" style="font-size:18px;font-variation-settings:'FILL' 1;">code</span>GitHub
+      </a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="lp-hero" style="position:relative;z-index:2;max-width:1200px;margin:0 auto;padding:56px 40px 40px;display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center;">
+    <div class="lp-hero-copy">
+      <div style="display:inline-flex;align-items:center;gap:9px;padding:7px 14px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.03);margin-bottom:26px;">
+        <span style="width:7px;height:7px;border-radius:999px;background:#FF4458;box-shadow:0 0 9px rgba(255,68,88,.9);"></span>
+        <span style="font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,.7);">Open-source hardware</span>
+      </div>
+      <h1 style="margin:0 0 22px;font-size:clamp(38px,7.4vw,60px);line-height:1.02;font-weight:900;letter-spacing:-1.8px;">A physical remote for<br><span style="background:linear-gradient(110deg,#818cf8,#c084fc 44%,#f472b6);background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:lp-flow 6s linear infinite;">YouTube Music</span>.</h1>
+      <p style="margin:0 0 34px;font-size:19px;line-height:1.55;font-weight:400;color:rgba(255,255,255,.66);max-width:480px;">A polished AMOLED companion for the desk. It shows the track playing on your PC and sends every command — play, skip, like, seek, volume — over Wi‑Fi. The audio never leaves your computer.</p>
+      <div class="lp-cta" style="display:flex;align-items:center;gap:14px;">
+        <a href="#start" style="display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;color:#0a0a0b;background:#fff;padding:15px 26px;border-radius:14px;text-decoration:none;box-shadow:0 10px 30px rgba(0,0,0,.4);">
+          <span class="ms" style="font-size:20px;font-variation-settings:'FILL' 1;">rocket_launch</span>Get started
+        </a>
+        <a href="https://github.com/etaiso/yt-music-companion" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;color:#fff;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);padding:15px 26px;border-radius:14px;text-decoration:none;">
+          <span class="ms" style="font-size:20px;">star</span>Star on GitHub
+        </a>
+      </div>
+      <div class="lp-stats" style="display:flex;align-items:center;gap:26px;margin-top:38px;">
+        <div>
+          <div style="font-size:22px;font-weight:800;letter-spacing:-.5px;">480×480</div>
+          <div style="font-size:13px;font-weight:500;color:rgba(255,255,255,.5);">AMOLED touch</div>
+        </div>
+        <div style="width:1px;height:34px;background:rgba(255,255,255,.12);"></div>
+        <div>
+          <div style="font-size:22px;font-weight:800;letter-spacing:-.5px;">ESP32‑S3</div>
+          <div style="font-size:13px;font-weight:500;color:rgba(255,255,255,.5);">no audio on board</div>
+        </div>
+        <div style="width:1px;height:34px;background:rgba(255,255,255,.12);"></div>
+        <div>
+          <div style="font-size:22px;font-weight:800;letter-spacing:-.5px;">LVGL v9</div>
+          <div style="font-size:13px;font-weight:500;color:rgba(255,255,255,.5);">ESP‑IDF firmware</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lp-hero-visual" style="position:relative;display:flex;align-items:center;justify-content:center;">
+      <div style="position:absolute;width:440px;height:440px;border-radius:999px;background:radial-gradient(circle, rgba(192,132,252,.4) 0%, rgba(236,72,153,.16) 40%, rgba(192,132,252,0) 70%);filter:blur(8px);animation:lp-glowpulse 7s ease-in-out infinite;"></div>
+      <div style="position:relative;animation:lp-float 8s ease-in-out infinite;">
+        <div id="lp-hero-device"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- HOW IT WORKS -->
+  <section id="how" class="lp-section" style="position:relative;z-index:2;max-width:1200px;margin:0 auto;padding:90px 40px 60px;">
+    <div style="text-align:center;margin-bottom:14px;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#c084fc;">How it works</div>
+    <h2 style="text-align:center;margin:0 0 12px;font-size:clamp(28px,5vw,38px);font-weight:900;letter-spacing:-1px;">Three parts, one signal chain</h2>
+    <p style="text-align:center;margin:0 auto 56px;max-width:560px;font-size:17px;line-height:1.5;color:rgba(255,255,255,.6);">Your desktop plays the music. A tiny bridge translates its state. The board renders it and sends your taps back.</p>
+
+    <div class="lp-how" style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:0;">
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:30px 26px;">
+        <div style="width:46px;height:46px;border-radius:13px;background:rgba(129,140,248,.14);border:1px solid rgba(129,140,248,.3);display:flex;align-items:center;justify-content:center;margin-bottom:18px;">
+          <span class="ms" style="font-size:26px;color:#a5b4fc;">desktop_windows</span>
+        </div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.42);margin-bottom:6px;">Mac / Windows</div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.3px;margin-bottom:8px;">ytmdesktop</div>
+        <p style="margin:0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.58);">Plays the audio and exposes the live player state through its Companion Server.</p>
+      </div>
+
+      <div class="lp-arrow" style="display:flex;align-items:center;padding:0 10px;color:rgba(255,255,255,.32);">
+        <span class="ms" style="font-size:30px;">arrow_forward</span>
+      </div>
+
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:30px 26px;">
+        <div style="width:46px;height:46px;border-radius:13px;background:rgba(192,132,252,.14);border:1px solid rgba(192,132,252,.3);display:flex;align-items:center;justify-content:center;margin-bottom:18px;">
+          <span class="ms" style="font-size:26px;color:#c084fc;">swap_horiz</span>
+        </div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.42);margin-bottom:6px;">Node.js</div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.3px;margin-bottom:8px;">The bridge</div>
+        <p style="margin:0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.58);">Normalizes state into a source-agnostic view-model and pushes pre-resized cover art.</p>
+      </div>
+
+      <div class="lp-arrow" style="display:flex;align-items:center;padding:0 10px;color:rgba(255,255,255,.32);">
+        <span class="ms" style="font-size:30px;">arrow_forward</span>
+      </div>
+
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:30px 26px;">
+        <div style="width:46px;height:46px;border-radius:13px;background:rgba(244,114,182,.14);border:1px solid rgba(244,114,182,.3);display:flex;align-items:center;justify-content:center;margin-bottom:18px;">
+          <span class="ms" style="font-size:26px;color:#f472b6;">developer_board</span>
+        </div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.42);margin-bottom:6px;">ESP32‑S3 board</div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.3px;margin-bottom:8px;">The screen</div>
+        <p style="margin:0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.58);">Renders the track and emits your commands back over Wi‑Fi. A pure UI client.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:22px;display:flex;justify-content:center;">
+      <div style="display:inline-flex;align-items:center;gap:10px;padding:11px 20px;border-radius:999px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);font-size:14px;font-weight:500;color:rgba(255,255,255,.62);text-align:left;">
+        <span class="ms" style="font-size:19px;color:#a5b4fc;flex:none;">wifi</span>
+        BLE-only board never touches audio, decoding, TLS, or auth — it all stays on your PC.
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features" class="lp-section" style="position:relative;z-index:2;max-width:1200px;margin:0 auto;padding:70px 40px 60px;">
+    <div style="text-align:center;margin-bottom:14px;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#c084fc;">Built with intent</div>
+    <h2 style="text-align:center;margin:0 0 56px;font-size:clamp(28px,5vw,38px);font-weight:900;letter-spacing:-1px;">Every detail earns its place</h2>
+
+    <div class="lp-features" style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px;">
+        <span class="ms" style="font-size:30px;color:#c084fc;font-variation-settings:'FILL' 1;">graphic_eq</span>
+        <div style="font-size:18px;font-weight:800;letter-spacing:-.3px;margin:16px 0 8px;">Reactive ring visualizer</div>
+        <p style="margin:0;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">A halo that breathes around the cover, driven live by the player state and cover palette.</p>
+      </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px;">
+        <span class="ms" style="font-size:30px;color:#a5b4fc;font-variation-settings:'FILL' 1;">memory</span>
+        <div style="font-size:18px;font-weight:800;letter-spacing:-.3px;margin:16px 0 8px;">Pure UI client</div>
+        <p style="margin:0;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">The ESP32‑S3 is BLE-only, so playback and decoding stay on the host. The board just renders and controls.</p>
+      </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px;">
+        <span class="ms" style="font-size:30px;color:#f472b6;font-variation-settings:'FILL' 1;">image</span>
+        <div style="font-size:18px;font-weight:800;letter-spacing:-.3px;margin:16px 0 8px;">Zero-decode cover art</div>
+        <p style="margin:0;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">The bridge sends pre-resized 172×172 RGB565 bitmaps the board blits straight to the panel — no JPEG decode.</p>
+      </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px;">
+        <span class="ms" style="font-size:30px;color:#a5b4fc;font-variation-settings:'FILL' 1;">tune</span>
+        <div style="font-size:18px;font-weight:800;letter-spacing:-.3px;margin:16px 0 8px;">Source-agnostic view-model</div>
+        <p style="margin:0;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">A backend-neutral render layer. Every YouTube-Music-specific term lives in the bridge, not the firmware.</p>
+      </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px;">
+        <span class="ms" style="font-size:30px;color:#c084fc;font-variation-settings:'FILL' 1;">timeline</span>
+        <div style="font-size:18px;font-weight:800;letter-spacing:-.3px;margin:16px 0 8px;">Seekable timeline</div>
+        <p style="margin:0;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">A finite position + duration model you can scrub, with a LIVE badge that kicks in for live streams.</p>
+      </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px;">
+        <span class="ms" style="font-size:30px;color:#f472b6;font-variation-settings:'FILL' 1;">dark_mode</span>
+        <div style="font-size:18px;font-weight:800;letter-spacing:-.3px;margin:16px 0 8px;">Themeable by token swap</div>
+        <p style="margin:0;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">Dark AMOLED first, with a warm-cream variant that swaps the whole palette through one token table.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATES GALLERY -->
+  <section class="lp-section" style="position:relative;z-index:2;max-width:1200px;margin:0 auto;padding:70px 40px 60px;">
+    <div style="text-align:center;margin-bottom:14px;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#c084fc;">Every state, designed</div>
+    <h2 style="text-align:center;margin:0 0 56px;font-size:clamp(28px,5vw,38px);font-weight:900;letter-spacing:-1px;">One screen, six moods</h2>
+    <div style="display:flex;justify-content:center;gap:48px;flex-wrap:wrap;">
+      <div style="text-align:center;">
+        <div style="width:300px;height:300px;overflow:hidden;border-radius:32px;box-shadow:0 22px 50px rgba(0,0,0,.45);">
+          <div class="lp-gallery-device" data-mode="playing" data-cover="tides" data-title="Coastlines" data-artist="Marlowe Gray" data-album="Tidal · Album" style="width:500px;height:500px;transform:scale(.6);transform-origin:top left;"></div>
+        </div>
+        <div style="margin-top:16px;font-size:15px;font-weight:700;">Playing</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);">Ring alive, art blitted</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="width:300px;height:300px;overflow:hidden;border-radius:32px;box-shadow:0 22px 50px rgba(0,0,0,.45);">
+          <div class="lp-gallery-device" data-mode="paused" data-cover="lanterns" data-title="Field Notes" data-artist="Yumi &amp; the Hours" data-album="Field Notes · Album" style="width:500px;height:500px;transform:scale(.6);transform-origin:top left;"></div>
+        </div>
+        <div style="margin-top:16px;font-size:15px;font-weight:700;">Paused</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);">Ring settles, dim state</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="width:300px;height:300px;overflow:hidden;border-radius:32px;box-shadow:0 22px 50px rgba(0,0,0,.45);">
+          <div class="lp-gallery-device" data-mode="disconnected" data-cover="midnight" style="width:500px;height:500px;transform:scale(.6);transform-origin:top left;"></div>
+        </div>
+        <div style="margin-top:16px;font-size:15px;font-weight:700;">Offline</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);">Graceful fallback banner</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECH STACK -->
+  <section class="lp-section" style="position:relative;z-index:2;max-width:1200px;margin:0 auto;padding:70px 40px 60px;">
+    <div class="lp-tech" style="border:1px solid rgba(255,255,255,.09);border-radius:26px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));padding:44px 40px;display:grid;grid-template-columns:repeat(4,1fr);gap:36px;">
+      <div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#c084fc;margin-bottom:12px;">Hardware</div>
+        <div style="font-size:16px;font-weight:700;line-height:1.35;">Waveshare ESP32‑S3‑Touch‑AMOLED‑2.16</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.5);margin-top:6px;">480×480 CO5300 QSPI panel</div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#c084fc;margin-bottom:12px;">Firmware</div>
+        <div style="font-size:16px;font-weight:700;line-height:1.35;">ESP‑IDF + vendor BSP</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.5);margin-top:6px;">LVGL v9.5.0, Inter ExtraBold</div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#c084fc;margin-bottom:12px;">Bridge</div>
+        <div style="font-size:16px;font-weight:700;line-height:1.35;">Node.js, cross-platform</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.5);margin-top:6px;">Runs on macOS or Windows</div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#c084fc;margin-bottom:12px;">Backend</div>
+        <div style="font-size:16px;font-weight:700;line-height:1.35;">ytmdesktop Companion Server</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.5);margin-top:6px;">Socket.IO + REST @ :9863</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GET STARTED -->
+  <section id="start" class="lp-section" style="position:relative;z-index:2;max-width:1200px;margin:0 auto;padding:70px 40px 40px;">
+    <div style="text-align:center;margin-bottom:14px;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#c084fc;">Get started</div>
+    <h2 style="text-align:center;margin:0 0 12px;font-size:clamp(28px,5vw,38px);font-weight:900;letter-spacing:-1px;">Two ways to run it</h2>
+    <p style="text-align:center;margin:0 auto 56px;max-width:520px;font-size:17px;line-height:1.5;color:rgba(255,255,255,.6);">Try the whole UI in a desktop simulator with no hardware, or flash the real board and feed it live music.</p>
+
+    <div class="lp-start-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:32px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+          <span class="ms" style="font-size:24px;color:#a5b4fc;">terminal</span>
+          <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.5);">Option A · no hardware</div>
+        </div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:10px;">Desktop simulator</div>
+        <p style="margin:0 0 22px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">Runs the exact same <code style="font-family:ui-monospace,monospace;font-size:13px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:5px;">ui/</code> code in an SDL window, cycling through all six player states.</p>
+        <div style="position:relative;background:#050506;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px 18px;">
+          <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.7;color:rgba(255,255,255,.82);white-space:pre-wrap;word-break:break-all;"><span style="color:#6b7280;">$ </span>brew install cmake sdl2
+<span style="color:#6b7280;">$ </span>cd sim &amp;&amp; cmake -B build
+<span style="color:#6b7280;">$ </span>cmake --build build &amp;&amp; ./build/ytm_sim</div>
+          <button id="lp-copy-sim" type="button" aria-label="Copy simulator commands" style="position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);">
+            <span class="ms" style="font-size:18px;">content_copy</span>
+          </button>
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:32px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+          <span class="ms" style="font-size:24px;color:#f472b6;">developer_board</span>
+          <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.5);">Option B · on the board</div>
+        </div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:10px;">Flash &amp; go live</div>
+        <p style="margin:0 0 22px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">Set your Wi‑Fi in <code style="font-family:ui-monospace,monospace;font-size:13px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:5px;">menuconfig</code>, flash the firmware, then run the bridge on your PC.</p>
+        <div style="position:relative;background:#050506;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px 18px;">
+          <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.7;color:rgba(255,255,255,.82);white-space:pre-wrap;word-break:break-all;"><span style="color:#6b7280;">$ </span>cd firmware &amp;&amp; idf.py set-target esp32s3
+<span style="color:#6b7280;">$ </span>idf.py menuconfig  <span style="color:#6b7280;"># set Wi-Fi</span>
+<span style="color:#6b7280;">$ </span>idf.py -p &lt;port&gt; flash monitor</div>
+          <button id="lp-copy-board" type="button" aria-label="Copy board commands" style="position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);">
+            <span class="ms" style="font-size:18px;">content_copy</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:48px;position:relative;overflow:hidden;border-radius:26px;border:1px solid rgba(255,255,255,.1);background:linear-gradient(120deg,rgba(109,40,217,.28),rgba(236,72,153,.2));padding:52px 44px;text-align:center;">
+      <div style="position:absolute;inset:0;background:radial-gradient(60% 100% at 50% 0%, rgba(244,114,182,.28), rgba(244,114,182,0) 70%);pointer-events:none;"></div>
+      <h3 style="position:relative;margin:0 0 12px;font-size:clamp(24px,4.5vw,32px);font-weight:900;letter-spacing:-.8px;">Build it on your desk.</h3>
+      <p style="position:relative;margin:0 auto 28px;max-width:460px;font-size:16px;line-height:1.5;color:rgba(255,255,255,.78);">Full specs, firmware, the simulator, and the bridge — all in the repo. Currently in the spec-and-first-slice phase.</p>
+      <a href="https://github.com/etaiso/yt-music-companion" target="_blank" rel="noopener" style="position:relative;display:inline-flex;align-items:center;gap:10px;font-size:16px;font-weight:700;color:#0a0a0b;background:#fff;padding:16px 30px;border-radius:14px;text-decoration:none;box-shadow:0 12px 34px rgba(0,0,0,.4);">
+        <span class="ms" style="font-size:20px;font-variation-settings:'FILL' 1;">code</span>View on GitHub
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="lp-footer" style="position:relative;z-index:2;max-width:1200px;margin:40px auto 0;padding:44px 40px 56px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <div style="width:30px;height:30px;border-radius:9px;background:linear-gradient(150deg,#818cf8,#c084fc 52%,#f472b6);display:flex;align-items:center;justify-content:center;">
+        <span class="ms" style="font-size:18px;color:#0a0a0b;font-variation-settings:'FILL' 1;">graphic_eq</span>
+      </div>
+      <span style="font-size:14px;font-weight:700;">YT Music Companion</span>
+    </div>
+    <div style="font-size:13px;color:rgba(255,255,255,.42);">Open-source · not affiliated with YouTube or Google</div>
+    <a href="https://github.com/etaiso/yt-music-companion" target="_blank" rel="noopener" style="font-size:14px;font-weight:600;color:rgba(255,255,255,.62);text-decoration:none;display:flex;align-items:center;gap:7px;">
+      <span class="ms" style="font-size:18px;font-variation-settings:'FILL' 1;">code</span>etaiso/yt-music-companion
+    </a>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+  var reduced = function () {
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+  };
+  var fmt = function (s) {
+    s = Math.max(0, Math.floor(Number(s) || 0));
+    var m = Math.floor(s / 60), ss = s % 60;
+    return m + ':' + (ss < 10 ? '0' : '') + ss;
+  };
+  var esc = function (str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  };
+
+  var PALETTE = {
+    midnight: ['#818cf8', '#c084fc', '#f472b6'],
+    tides:    ['#67e8f9', '#22d3ee', '#a78bfa'],
+    lanterns: ['#fcd34d', '#fb923c', '#f87171']
+  };
+  var AMBIENT = {
+    midnight: 'radial-gradient(120% 78% at 50% 4%, #6d28d9 0%, rgba(109,40,217,0) 56%), radial-gradient(90% 60% at 78% 26%, #ec4899 0%, rgba(236,72,153,0) 50%), linear-gradient(180deg,#1b1336,#0b0718 68%,#060410)',
+    tides:    'radial-gradient(120% 78% at 50% 4%, #0891b2 0%, rgba(8,145,178,0) 56%), radial-gradient(82% 58% at 74% 24%, #22d3ee 0%, rgba(34,211,238,0) 48%), linear-gradient(180deg,#06242e,#03141b 68%,#020b0e)',
+    lanterns: 'radial-gradient(120% 78% at 50% 4%, #c2410c 0%, rgba(194,65,12,0) 56%), radial-gradient(82% 58% at 70% 28%, #f59e0b 0%, rgba(245,158,11,0) 48%), linear-gradient(180deg,#2b1408,#160903 68%,#0a0402)'
+  };
+  var AMBIENT_NEUTRAL = 'radial-gradient(120% 80% at 50% 6%, #2a2a2e 0%, rgba(42,42,46,0) 60%), linear-gradient(180deg,#141416,#0a0a0b 70%,#070709)';
+
+  var COVER_ART = {
+    midnight: '<div style="position:relative;width:172px;height:172px;border-radius:26px;overflow:hidden;background:radial-gradient(circle at 50% 36%, #EC4899 0%, rgba(236,72,153,0) 42%), linear-gradient(165deg,#312e81,#1e1b4b 58%,#0f0a2e);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 18px 40px rgba(0,0,0,.5);">'
+      + '<div style="position:absolute;top:32px;left:50%;transform:translateX(-50%);width:60px;height:60px;border-radius:999px;background:radial-gradient(circle at 38% 30%, #fce7f3, #f9a8d4 52%, #ec4899);box-shadow:0 0 36px rgba(236,72,153,.8);"></div>'
+      + '<div style="position:absolute;top:12px;left:15px;font-size:8px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:rgba(255,255,255,.72);">The Reverb Club</div>'
+      + '<div style="position:absolute;left:15px;right:15px;bottom:13px;font-size:22px;font-weight:900;letter-spacing:-.5px;line-height:.94;color:#fff;">Neon<br>Nights</div></div>',
+    tides: '<div style="position:relative;width:172px;height:172px;border-radius:26px;overflow:hidden;background:linear-gradient(180deg,#67e8f9 0%,#22d3ee 34%,#0e7490 55%,#083344 55%,#155e75 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.24),0 18px 40px rgba(0,0,0,.5);">'
+      + '<div style="position:absolute;top:38px;left:50%;transform:translateX(-50%);width:52px;height:52px;border-radius:999px;background:radial-gradient(circle at 40% 34%, #fffbeb, #fde68a 60%, #fbbf24);box-shadow:0 0 30px rgba(253,224,138,.75);"></div>'
+      + '<div style="position:absolute;top:12px;left:15px;font-size:8px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:rgba(8,51,68,.8);">Marlowe Gray</div>'
+      + '<div style="position:absolute;left:15px;right:15px;bottom:13px;font-size:22px;font-weight:900;letter-spacing:-.5px;line-height:.94;color:#ecfeff;">Coast<br>lines</div></div>',
+    lanterns: '<div style="position:relative;width:172px;height:172px;border-radius:26px;overflow:hidden;background:linear-gradient(165deg,#7c2d12,#431407 68%,#1c0a02);box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 18px 40px rgba(0,0,0,.55);">'
+      + '<div style="position:absolute;top:30px;left:34px;width:18px;height:18px;border-radius:999px;background:radial-gradient(circle at 38% 30%, #fff7ed, #fbbf24 60%, #f97316);box-shadow:0 0 22px rgba(251,191,36,.85);"></div>'
+      + '<div style="position:absolute;top:54px;left:84px;width:22px;height:22px;border-radius:999px;background:radial-gradient(circle at 38% 30%, #fff7ed, #fbbf24 58%, #f97316);box-shadow:0 0 26px rgba(251,191,36,.9);"></div>'
+      + '<div style="position:absolute;top:40px;left:124px;width:14px;height:14px;border-radius:999px;background:radial-gradient(circle at 38% 30%, #fff7ed, #fbbf24 60%, #f97316);box-shadow:0 0 20px rgba(251,191,36,.8);"></div>'
+      + '<div style="position:absolute;top:12px;left:15px;font-size:8px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:rgba(255,237,213,.74);">Yumi &amp; the Hours</div>'
+      + '<div style="position:absolute;left:15px;right:15px;bottom:13px;font-size:22px;font-weight:900;letter-spacing:-.5px;line-height:.94;color:#fff7ed;">Field<br>Notes</div></div>',
+    gradient: '<div style="width:172px;height:172px;border-radius:26px;background:linear-gradient(135deg,#3a3a3d,#1c1c1f);box-shadow:0 18px 40px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;">'
+      + '<span class="ms" style="font-size:52px;color:rgba(255,255,255,.32);">music_note</span></div>'
+  };
+
+  function deviceMarkup(o) {
+    var mode = o.mode || 'playing';
+    var isPlaying = mode === 'playing', isPaused = mode === 'paused', isBuffering = mode === 'buffering';
+    var isEmpty = mode === 'empty', isAd = mode === 'ad', isDisc = mode === 'disconnected';
+    var gradientCover = isEmpty || isAd;
+    var cover = o.cover || 'midnight';
+    var stateLabel = isPaused ? 'Paused' : isBuffering ? 'Buffering' : isEmpty ? 'Idle' : isAd ? 'Ad' : 'Playing';
+    var mutedState = isPaused || isBuffering || isEmpty || isAd;
+    var titleText = isEmpty ? 'Nothing playing' : isAd ? 'Advertisement' : (o.title || 'Untitled');
+    var showArtist = (isPlaying || isPaused || isDisc) && !!o.artist;
+    var showAlbum = (isPlaying || isPaused || isDisc) && !!o.album;
+    var favorite = !!o.favorite;
+    var playIcon = (isPlaying || isBuffering) ? 'pause' : 'play_arrow';
+    var ambientBg = (isEmpty || isAd || isDisc) ? AMBIENT_NEUTRAL : (AMBIENT[cover] || AMBIENT.midnight);
+
+    var coverHtml = gradientCover ? COVER_ART.gradient : (COVER_ART[cover] || COVER_ART.midnight);
+    coverHtml = coverHtml.replace('<div ', '<div data-cover-el="1" ');
+
+    var status = '';
+    if (isPlaying) {
+      status = '<span style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#FF4458;"><span style="width:8px;height:8px;border-radius:999px;background:#FF4458;box-shadow:0 0 10px rgba(255,68,88,.9);animation:np2-dotpulse 1.4s ease-in-out infinite;"></span>Playing</span>';
+    } else if (isDisc) {
+      status = '<span style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#FF6B6B;"><span style="width:8px;height:8px;border-radius:999px;background:#FF6B6B;"></span>Offline</span>';
+    } else if (mutedState) {
+      status = '<span style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.55);"><span style="width:8px;height:8px;border-radius:999px;background:rgba(255,255,255,.4);"></span>' + esc(stateLabel) + '</span>';
+    }
+
+    var titleBlock;
+    if (isBuffering) {
+      titleBlock = '<div style="width:200px;height:26px;border-radius:8px;background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.16) 45%,rgba(255,255,255,.06) 65%);background-size:220% 100%;animation:np2-shimmer 1.3s ease-in-out infinite;"></div>'
+        + '<div style="width:130px;height:16px;border-radius:7px;background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.16) 45%,rgba(255,255,255,.06) 65%);background-size:220% 100%;animation:np2-shimmer 1.3s ease-in-out infinite;animation-delay:.15s;"></div>';
+    } else {
+      titleBlock = '<div style="font-size:29px;font-weight:800;letter-spacing:-0.6px;line-height:1.1;color:#fff;max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(titleText) + '</div>';
+      if (showArtist) titleBlock += '<div style="font-size:17px;font-weight:600;color:rgba(255,255,255,.72);max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(o.artist) + '</div>';
+      if (showAlbum) titleBlock += '<div style="font-size:13px;font-weight:600;letter-spacing:.2px;color:rgba(255,255,255,.46);max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(o.album) + '</div>';
+    }
+
+    var progress = '';
+    if (!isEmpty) {
+      progress = '<div style="display:flex;align-items:center;gap:12px;flex:none;margin-top:8px;">'
+        + '<span style="font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.55);width:34px;text-align:left;">' + esc(fmt(o.position)) + '</span>'
+        + '<div style="flex:1;height:20px;display:flex;align-items:center;"><div style="position:relative;width:100%;height:7px;border-radius:999px;background:rgba(255,255,255,.18);">'
+        + '<div data-fill-el="1" style="position:absolute;left:0;top:0;height:7px;width:0%;border-radius:999px;background:#fff;"></div></div></div>'
+        + '<span style="font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.55);width:34px;text-align:right;">' + esc(fmt(o.duration)) + '</span></div>';
+    }
+
+    var likeIcon = favorite
+      ? '<span class="ms" style="font-size:30px;color:#FF4458;font-variation-settings:\'opsz\' 24,\'FILL\' 1;">thumb_up</span>'
+      : '<span class="ms" style="font-size:30px;color:rgba(255,255,255,.6);font-variation-settings:\'opsz\' 24,\'FILL\' 0;">thumb_up</span>';
+
+    var controls = '<div style="display:flex;justify-content:space-between;align-items:center;flex:none;margin-top:16px;padding:0 2px;">'
+      + '<button type="button" style="width:56px;height:56px;border-radius:999px;border:none;background:transparent;cursor:default;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.6);"><span class="ms" style="font-size:30px;font-variation-settings:\'opsz\' 24,\'FILL\' 0;">thumb_down</span></button>'
+      + '<button type="button" style="width:56px;height:56px;border-radius:999px;border:none;background:transparent;cursor:default;display:flex;align-items:center;justify-content:center;color:#fff;"><span class="ms" style="font-size:38px;font-variation-settings:\'opsz\' 40,\'FILL\' 1;">skip_previous</span></button>'
+      + '<button type="button" style="width:80px;height:80px;border-radius:999px;border:none;cursor:default;display:flex;align-items:center;justify-content:center;color:#0a0a0b;background:#fff;box-shadow:0 12px 30px rgba(0,0,0,.45);"><span class="ms" style="font-size:42px;font-variation-settings:\'opsz\' 40,\'FILL\' 1;">' + playIcon + '</span></button>'
+      + '<button type="button" style="width:56px;height:56px;border-radius:999px;border:none;background:transparent;cursor:default;display:flex;align-items:center;justify-content:center;color:#fff;"><span class="ms" style="font-size:38px;font-variation-settings:\'opsz\' 40,\'FILL\' 1;">skip_next</span></button>'
+      + '<button type="button" style="width:56px;height:56px;border-radius:999px;border:none;background:transparent;cursor:default;display:flex;align-items:center;justify-content:center;">' + likeIcon + '</button></div>';
+
+    var banner = '';
+    if (isDisc) {
+      banner = '<div style="position:absolute;left:20px;right:20px;bottom:98px;display:flex;align-items:center;gap:11px;background:rgba(18,18,21,.92);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:13px 15px;box-shadow:0 10px 28px rgba(0,0,0,.5);backdrop-filter:blur(8px);">'
+        + '<span style="width:9px;height:9px;border-radius:999px;background:#FF6B6B;flex:none;box-shadow:0 0 10px rgba(255,107,107,.8);"></span>'
+        + '<span style="font-size:13px;font-weight:500;line-height:1.3;color:rgba(255,255,255,.82);">Can\'t reach your computer — check it\'s on and on the same network.</span></div>';
+    }
+
+    return '<div style="position:relative;width:500px;height:500px;border-radius:54px;background:#070708;padding:10px;box-sizing:border-box;box-shadow:0 26px 64px rgba(0,0,0,.5),0 6px 18px rgba(0,0,0,.4);">'
+      + '<div style="position:relative;width:480px;height:480px;border-radius:44px;overflow:hidden;background:#070709;font-family:Inter,sans-serif;">'
+      + '<div style="position:absolute;inset:-12%;animation:np2-amb 14s ease-in-out infinite;background:' + ambientBg + ';"></div>'
+      + '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,7,9,0) 28%,rgba(7,7,9,.55) 74%,rgba(7,7,9,.9) 100%);"></div>'
+      + '<canvas data-ring-el="1" width="480" height="480" style="position:absolute;inset:0;width:480px;height:480px;"></canvas>'
+      + '<div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:24px 28px 22px;box-sizing:border-box;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;height:20px;flex:none;">'
+      + '<span style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.6);">' + esc(o.source || 'YouTube Music') + '</span>'
+      + status + '</div>'
+      + '<div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;">' + coverHtml + '</div>'
+      + '<div style="text-align:center;flex:none;min-height:84px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;">' + titleBlock + '</div>'
+      + progress
+      + controls
+      + '</div>' + banner
+      + '</div></div>';
+  }
+
+  function mountDevice(el, opts) {
+    el.innerHTML = deviceMarkup(opts);
+    var canvas = el.querySelector('[data-ring-el]');
+    var coverEl = el.querySelector('[data-cover-el]');
+    var fillEl = el.querySelector('[data-fill-el]');
+    var mode = opts.mode || 'playing';
+    var pal = PALETTE[opts.cover || 'midnight'] || ['#9ca3af', '#d1d5db', '#9ca3af'];
+
+    if (fillEl) {
+      var d = Number(opts.duration) || 0;
+      fillEl.style.width = (d ? clamp((Number(opts.position) || 0) / d, 0, 1) * 100 : 0) + '%';
+    }
+    if (!canvas) return;
+
+    var t0 = performance.now(), ripples = [], noise = 0, lastRipple = 0, raf = 0;
+
+    function level() {
+      var t = (performance.now() - t0) / 1000;
+      if (reduced()) return 0.15 + 0.05 * Math.sin(t * 1.2);
+      if (mode === 'playing') {
+        noise += (Math.random() - 0.5) * 0.12;
+        noise *= 0.9;
+        noise = clamp(noise, -0.25, 0.25);
+        var l = 0.42 + 0.2 * Math.sin(t * 3.0) + 0.15 * Math.sin(t * 5.3 + 1) + 0.09 * Math.sin(t * 9.7 + 2) + noise * 0.6;
+        return clamp(l, 0.05, 1);
+      }
+      if (mode === 'paused') return 0.16 + 0.06 * Math.sin(t * 1.4);
+      return 0.05 + 0.02 * Math.sin(t * 0.9);
+    }
+
+    function draw() {
+      if (!canvas.isConnected) { raf = requestAnimationFrame(draw); return; }
+      var dpr = window.devicePixelRatio || 1, W = 480, H = 480;
+      if (canvas.width !== Math.round(W * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+      var ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+
+      // Center/radius in the canvas's own logical (480) coordinates, normalized so
+      // CSS transform scaling (the gallery devices are scaled to .6) doesn't shift the ring.
+      var cx = W / 2, cy = 188, cr = 86;
+      var pb = canvas.getBoundingClientRect();
+      var scale = pb.width ? pb.width / W : 1;
+      if (coverEl && scale) {
+        var cb = coverEl.getBoundingClientRect();
+        if (cb.width) {
+          cx = (cb.left - pb.left) / scale + (cb.width / scale) / 2;
+          cy = (cb.top - pb.top) / scale + (cb.height / scale) / 2;
+          cr = (cb.width / scale) / 2;
+        }
+      }
+
+      var lv = level();
+      var g = ctx.createLinearGradient(cx - 170, cy - 170, cx + 170, cy + 170);
+      g.addColorStop(0, pal[0]); g.addColorStop(0.5, pal[1]); g.addColorStop(1, pal[2]);
+      ctx.strokeStyle = g;
+      ctx.lineCap = 'round';
+      var amps = [18, 12, 8], baseGap = 20, step = 24;
+      for (var i = 0; i < 3; i++) {
+        var r = cr + baseGap + i * step + amps[i] * lv * 0.9;
+        ctx.globalAlpha = (0.8 - i * 0.2) * (0.4 + 0.6 * lv);
+        ctx.lineWidth = 3.6 - i * 0.7;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      var now = performance.now() / 1000;
+      if (mode === 'playing' && !reduced() && lv > 0.7 && now - lastRipple > 0.3) {
+        ripples.push({ r: cr + baseGap, life: 1 });
+        lastRipple = now;
+      }
+      for (var j = ripples.length - 1; j >= 0; j--) {
+        var rp = ripples[j];
+        rp.r += 2.8; rp.life -= 0.02;
+        if (rp.life <= 0) { ripples.splice(j, 1); continue; }
+        ctx.globalAlpha = rp.life * 0.4;
+        ctx.lineWidth = 2.4 * rp.life + 0.4;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rp.r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      raf = requestAnimationFrame(draw);
+    }
+    // Paint one frame synchronously so the ring is visible immediately — even in a
+    // background/hidden tab (where rAF is throttled) or under reduced motion. draw()
+    // schedules the next frame itself, so the animation continues once visible.
+    draw();
+  }
+
+  function wireCopy(btnId, text) {
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+    var icon = btn.querySelector('.ms');
+    btn.addEventListener('click', function () {
+      try { navigator.clipboard.writeText(text); } catch (e) {}
+      if (icon) icon.textContent = 'check';
+      clearTimeout(btn._t);
+      btn._t = setTimeout(function () { if (icon) icon.textContent = 'content_copy'; }, 1600);
+    });
+  }
+
+  function init() {
+    mountDevice(document.getElementById('lp-hero-device'), {
+      mode: 'playing', cover: 'midnight', title: 'Midnight Drive',
+      artist: 'The Reverb Club', album: 'Neon Nights · Album',
+      favorite: true, position: 72, duration: 228
+    });
+
+    var slots = document.querySelectorAll('.lp-gallery-device');
+    for (var i = 0; i < slots.length; i++) {
+      var d = slots[i].dataset;
+      mountDevice(slots[i], {
+        mode: d.mode, cover: d.cover, title: d.title, artist: d.artist, album: d.album,
+        favorite: d.favorite === 'true',
+        position: d.position ? Number(d.position) : 0,
+        duration: d.duration ? Number(d.duration) : 0
+      });
+    }
+
+    wireCopy('lp-copy-sim', 'brew install cmake sdl2\ncd sim && cmake -B build\ncmake --build build && ./build/ytm_sim');
+    wireCopy('lp-copy-board', 'cd firmware && idf.py set-target esp32s3\nidf.py menuconfig\nidf.py -p <port> flash monitor');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

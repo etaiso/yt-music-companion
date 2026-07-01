@@ -127,3 +127,27 @@ cover art, and controls.
 Full details: [docs/RUNNING.md](docs/RUNNING.md) (build/flash), [bridge/README.md](bridge/README.md)
 and [bridge/WINDOWS-SETUP.md](bridge/WINDOWS-SETUP.md) (running the bridge, recommended
 on Windows when the Mac is corporate-managed).
+
+## Landing page
+
+A static marketing page lives in [`site/`](site/) and is published to GitHub Pages at
+**https://etaiso.github.io/yt-music-companion/** (via [.github/workflows/pages.yml](.github/workflows/pages.yml)).
+It's a single self-contained `index.html` — no build step. Preview it locally with the
+`site` config in `.claude/launch.json`, or any static server:
+
+```sh
+cd site && python3 -m http.server 8090   # then open http://localhost:8090
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE). © 2026 Etai Solomon.
+
+Not affiliated with YouTube or Google. "YouTube Music" is a trademark of Google LLC.
+
+**Third-party assets & dependencies:**
+
+- [Inter](https://rsms.me/inter/) font — SIL Open Font License 1.1
+- [Material Symbols](https://fonts.google.com/icons) — Apache License 2.0
+- [LVGL](https://lvgl.io) — MIT License
+- [ESP-IDF](https://github.com/espressif/esp-idf) — Apache License 2.0
