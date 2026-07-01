@@ -63,6 +63,27 @@ config YTM_IDLE_DIM_PERCENT
         Panel brightness while dimmed. Restored to the user's level on any
         interaction.
 
+config YTM_IDLE_POWEROFF_ENABLE
+    bool "Auto power-off after long idle (battery only)"
+    depends on YTM_IDLE_DIM_ENABLE
+    default y
+    help
+        When set, the board hard-powers-off via the AXP2101 after
+        YTM_IDLE_POWEROFF_MS of no touch, no motion, and nothing playing — but
+        only while running on battery (not while charging / on external power).
+        Once off, only a PWRON key press turns it back on (a cold boot). Reuses
+        the idle tracking that YTM_IDLE_DIM_ENABLE sets up.
+
+config YTM_IDLE_POWEROFF_MS
+    int "Idle time before power-off (ms)"
+    depends on YTM_IDLE_POWEROFF_ENABLE
+    default 600000
+    range 60000 3600000
+    help
+        Milliseconds with no touch, no motion, nothing playing, and on battery
+        before the board powers itself off. Should be larger than YTM_IDLE_DIM_MS
+        (the screen dims first, then powers off). Default 600000 = 10 minutes.
+
 config YTM_WIFI_SSID
     string "WiFi SSID"
     default "changeme"
