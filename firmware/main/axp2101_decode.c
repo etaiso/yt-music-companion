@@ -10,7 +10,8 @@ static int clampi(int v, int lo, int hi)
 void axp2101_decode(uint8_t status1, uint8_t status2, uint8_t soc_pct,
                     battery_status_t *out)
 {
-    out->present  = (status1 & (1u << 3)) != 0u;
-    out->charging = out->present && (((status2 >> 5) & 0x3u) == 0x1u);
-    out->percent  = clampi((int)soc_pct, 0, 100);
+    out->present        = (status1 & (1u << 3)) != 0u;
+    out->external_power = (status1 & AXP2101_STATUS1_VBUS_GOOD) != 0u;
+    out->charging       = out->present && (((status2 >> 5) & 0x3u) == 0x1u);
+    out->percent        = clampi((int)soc_pct, 0, 100);
 }

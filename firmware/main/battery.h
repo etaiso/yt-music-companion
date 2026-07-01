@@ -9,9 +9,10 @@ extern "C" {
 #endif
 
 typedef struct {
-    bool present;    // battery detected on the MX1.25 connector
-    int  percent;    // 0..100 state of charge (valid when present)
-    bool charging;   // USB present and actively charging
+    bool present;         // battery detected on the MX1.25 connector
+    int  percent;         // 0..100 state of charge (valid when present)
+    bool charging;        // USB present and actively charging
+    bool external_power;  // external/USB power present (VBUS good) — false = on battery
 } battery_status_t;
 
 // Start the AXP2101 poll task (call once after the BSP I2C bus is up).
