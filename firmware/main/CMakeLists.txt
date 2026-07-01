@@ -5,6 +5,7 @@ idf_component_register(
     SRCS "main.c"
          "net_backend.c"
          "battery.c"
+         "idle.c"
          "axp2101_decode.c"
          "${UI_DIR}/quick_panel.c"
          "${UI_DIR}/now_playing_screen.c"
