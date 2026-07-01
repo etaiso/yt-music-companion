@@ -88,7 +88,7 @@ static void motion_task(void *arg)
     uint32_t gpio;
     for (;;) {
         if (xQueueReceive(s_motion_q, &gpio, portMAX_DELAY) == pdTRUE) {
-            ESP_LOGI(TAG, "motion INT on GPIO%u", (unsigned)gpio);  // TEMP bring-up diagnostic — remove once confirmed
+            (void)gpio;                 // which pin fired doesn't matter — any INT = activity
             idle_notify_activity();
         }
     }
@@ -135,8 +135,10 @@ void imu_start(void)
         return;
     }
 
-    // Watch BOTH IMU INT lines (idle-high, motion pulls low). ANYEDGE during
-    // bring-up so we catch it regardless of which pin/polarity the board uses.
+    // Watch BOTH IMU INT lines with ANYEDGE. On this board the sensor drives
+    // INT1 (GPIO17, confirmed on-device), but watching both pins on any edge
+    // keeps wake robust to the INT routing/polarity — each edge just flags
+    // activity, so the extra interrupts are effectively free.
     gpio_config_t io = {
         .pin_bit_mask = (1ULL << IMU_INT1_GPIO) | (1ULL << IMU_INT2_GPIO),
         .mode         = GPIO_MODE_INPUT,
@@ -144,7 +146,9 @@ void imu_start(void)
         .intr_type    = GPIO_INTR_ANYEDGE,
     };
     gpio_config(&io);
-    gpio_install_isr_service(0);          // harmless (INVALID_STATE) if already installed
+    // Don't call gpio_install_isr_service() — the BSP already installs it (touch
+    // runs in IRQ mode), and calling it again logs a benign but alarming red
+    // error at boot. Just attach our handlers to the existing service.
     gpio_isr_handler_add(IMU_INT1_GPIO, imu_isr, (void *)(uintptr_t)IMU_INT1_GPIO);
     gpio_isr_handler_add(IMU_INT2_GPIO, imu_isr, (void *)(uintptr_t)IMU_INT2_GPIO);
 
