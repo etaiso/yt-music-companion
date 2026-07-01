@@ -84,6 +84,44 @@ unfavorited/dislike state) — matching the design exactly rather than approxima
 built-in symbols. `styles.h` points the `FONT_ICONS` macro at them. Regenerate the icon
 fonts with `./scripts/gen_icons.sh` (companion to `gen_fonts.sh`).
 
+## Auto screen-dim on idle
+
+When nothing is playing and the screen receives no touch or physical motion for
+`CONFIG_YTM_IDLE_DIM_MS` (default 30000 ms), the AMOLED dims to
+`CONFIG_YTM_IDLE_DIM_PERCENT` (default 10%). Touch or motion detected by the QMI8658
+IMU (via the motion-interrupt line on GPIO17) restores the user's brightness instantly.
+While a song is playing, the screen never dims.
+
+Dimming is transient and does not persist to NVS — the dimmed level never becomes boot
+brightness. Restore always returns to the user's current brightness (e.g., as set via
+the brightness slider in the quick panel).
+
+### Configuration
+
+Three Kconfig options under **YT Music board**:
+
+- `YTM_IDLE_DIM_ENABLE` (default y) — set to n to disable the feature entirely; screen
+  behaves as before.
+- `YTM_IDLE_DIM_MS` (default 30000) — idle timeout in milliseconds before dimming.
+- `YTM_IDLE_DIM_PERCENT` (default 10) — brightness target as a percentage (1–100).
+
+### Simulator
+
+The simulator exercises the TOUCH wake path only (no IMU on desktop). In headless mode,
+the mock cycles playback states and loop iterations are not 1:1 with UI ticks; to
+observe a dim→restore cycle, use a high frame cap:
+
+```bash
+SIM_MAX_FRAMES=15000 SDL_VIDEODRIVER=dummy ./build/ytm_sim.exe
+```
+
+### Hardware bring-up
+
+The QMI8658 motion-interrupt tuning (I2C address 0x6B/0x6A, WoM threshold, INT edge
+NEGEDGE/POSEDGE) is datasheet-configurable and flagged "tune on-device" in
+`firmware/main/imu.c`. If the IMU probe fails at boot, the feature degrades gracefully
+to touch-only wake, logged as a warning.
+
 ## Not in this slice (next tasks)
 
 Pending: remaining screens and real audio-energy `level` from the bridge (the rings

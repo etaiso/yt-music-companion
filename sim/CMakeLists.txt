@@ -40,12 +40,14 @@ add_executable(ytm_sim
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_semibold_15.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_semibold_14.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui/inter_regular_12.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main/idle.c
 )
 
 # lv_conf.h lives here; both our code and lvgl must see it on the include path.
 target_include_directories(ytm_sim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../ui
+    ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main
 )
 target_include_directories(lvgl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

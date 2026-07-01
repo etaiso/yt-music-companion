@@ -12,6 +12,7 @@
 #include "now_playing_screen.h"
 #include "quick_panel.h"
 #include "mock.h"
+#include "idle.h"
 
 #define TICK_MS 33
 
@@ -24,11 +25,24 @@ static uint32_t millis(void)
     return (uint32_t)(ts.tv_sec * 1000u + ts.tv_nsec / 1000000u);
 }
 
+static int s_active = 40;   // user's current brightness (restore target)
+
+// User path (quick-panel slider): remember + report.
 static void sim_brightness(int percent)
+{
+    s_active = percent;
+    printf("brightness: %d%%\n", percent);
+    fflush(stdout);
+}
+
+// Idle path: apply transiently (no persistence in the sim, just report).
+static void sim_apply(int percent)
 {
     printf("brightness: %d%%\n", percent);
     fflush(stdout);
 }
+
+static int sim_get_active(void) { return s_active; }
 
 static void sim_emit(const char *cmd, int arg)
 {
@@ -41,6 +55,8 @@ static void tick_cb(lv_timer_t *t)
     (void)t;
     mock_tick(&s_vm, TICK_MS);
     now_playing_update(&s_vm);
+    idle_tick(lv_display_get_inactive_time(NULL), millis(),
+              s_vm.playback == PB_PLAYING);
     quick_panel_set_battery(s_vm.battery_percent, s_vm.charging, s_vm.battery_present);
 }
 
@@ -56,6 +72,10 @@ int main(void)
     mock_init(&s_vm);
     now_playing_create(lv_screen_active());
     quick_panel_init(lv_screen_active(), sim_brightness, 40);
+    s_active = 40;
+    // Short idle window so dimming is observable in a short sim run.
+    idle_cfg_t icfg = { 1500, 10, sim_apply, sim_get_active };
+    idle_init(&icfg, millis());
     now_playing_update(&s_vm);
     lv_timer_create(tick_cb, TICK_MS, NULL);
 
