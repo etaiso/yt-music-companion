@@ -40,14 +40,15 @@ static const char *TAG = "imu";
 //  CTRL2: bits[6:4]=010 (+/-8g) | bits[3:0]=1100 (low-power 128Hz ODR).
 //  CAL1_H: bits[7:6]=10 -> WoM on INT1, initial level HIGH (so motion pulls it
 //          LOW -> falling edge); bits[5:0]=0x20 blanking samples.
-//  WOM_THRESH: motion threshold in mg (1 LSB = 1mg, 8-bit so 0xFF=255mg is the
-//  hardware max). Higher = less sensitive. WoM triggers on a single sample over
-//  threshold, so sharp impulses (desk knocks) are hard to reject by threshold
-//  alone; a deliberate pickup easily exceeds 255mg so wake still works.
+//  WOM_THRESH: motion threshold in mg (1 LSB = 1mg, 8-bit). Higher = less
+//  sensitive. 0x80 (~128mg) is a middle ground: max (0xFF/255mg) was too hard
+//  to wake, 0x20 (32mg) too twitchy. WoM triggers on a single sample over
+//  threshold, so it can't fully reject sharp impulses (desk knocks) by
+//  threshold alone — a software sustained-motion filter would be needed for that.
 #define QMI8658_CTRL1_CFG   0x48
 #define QMI8658_CTRL2_ACC   0x2C
 #define QMI8658_WOM_INTCFG  0xA0
-#define QMI8658_WOM_THRESH  0xFF
+#define QMI8658_WOM_THRESH  0x80
 
 #define IMU_INT1_GPIO      GPIO_NUM_17
 #define IMU_INT2_GPIO      GPIO_NUM_21
