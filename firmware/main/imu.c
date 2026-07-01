@@ -1,10 +1,11 @@
 // imu.c — QMI8658 wake-on-motion driver. Reuses the BSP I2C bus (shared with
-// the touch controller / AXP2101). On motion the sensor's INT (GPIO17) fires,
-// a task calls idle_notify_activity() to wake the screen. See the design spec.
+// the touch controller / AXP2101). On motion the sensor's INT fires, a task
+// calls idle_notify_activity() to wake the screen. See the design spec.
 //
-// Register values marked "tune on-device" are the best-known QMI8658 WoM recipe;
-// confirm them against the QMI8658 datasheet during bring-up (the WHO_AM_I probe
-// below de-risks the I2C address first).
+// WoM register recipe follows the QMI8658C datasheet + the SensorLib reference
+// driver. The board wires BOTH QMI_INT1 (GPIO17) and QMI_INT2 (GPIO21) to the
+// IMU; we route WoM to INT1 but watch BOTH pins so the exact schematic mapping
+// doesn't matter — whichever line the sensor drives, we catch it.
 #include "imu.h"
 #include "idle.h"
 
@@ -13,36 +14,43 @@
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/semphr.h"
+#include "freertos/queue.h"
 #include "esp_log.h"
 
 static const char *TAG = "imu";
 
 // --- QMI8658 I2C + registers -------------------------------------------------
-#define QMI8658_I2C_ADDR   0x6B   // SA0=1 on this board; try 0x6A if WHO_AM_I fails
+#define QMI8658_I2C_ADDR   0x6B   // SA0=1 on this board (WHO_AM_I confirmed)
 #define QMI8658_WHO_AM_I   0x00   // expect 0x05
 #define QMI8658_WHOAMI_VAL 0x05
-#define QMI8658_CTRL1      0x02   // serial IF / addr auto-increment
-#define QMI8658_CTRL2      0x03   // accel: ODR + full-scale
+#define QMI8658_CTRL1      0x02   // serial IF / INT pin enables / addr auto-inc
+#define QMI8658_CTRL2      0x03   // accel: full-scale + ODR
 #define QMI8658_CTRL7      0x08   // sensor enable (aEN = bit0)
 #define QMI8658_CTRL9      0x0A   // host command register
 #define QMI8658_CAL1_L     0x0B   // command arg: WoM threshold (mg)
-#define QMI8658_CAL1_H     0x0C   // command arg: INT map / blanking
-#define QMI8658_STATUSINT  0x2D   // bit0 = ctrl9 command done
+#define QMI8658_CAL1_H     0x0C   // command arg: INT select/polarity + blanking
+#define QMI8658_STATUSINT  0x2D   // bit7 = CTRL9 command done
 
 // CTRL9 host commands
 #define QMI8658_CMD_WOM    0x08   // CTRL_CMD_WRITE_WOM_SETTING
 #define QMI8658_CMD_ACK    0x00   // CTRL_CMD_ACK
 
-// Config values (tune on-device against the datasheet)
-#define QMI8658_CTRL2_ACC  0x03   // low ODR, moderate full-scale for WoM
-#define QMI8658_WOM_THRESH 0x20   // motion threshold in mg (~32 mg); raise to desensitize
-#define QMI8658_WOM_INTCFG 0x00   // INT map / blanking
+// Config values (tune on-device)
+//  CTRL1: bit6 ADDR_AI (auto-increment) + bit3 INT1_EN (drive the INT1 pin).
+//  CTRL2: bits[6:4]=010 (+/-8g) | bits[3:0]=1100 (low-power 128Hz ODR).
+//  CAL1_H: bits[7:6]=10 -> WoM on INT1, initial level HIGH (so motion pulls it
+//          LOW -> falling edge); bits[5:0]=0x20 blanking samples.
+//  WOM_THRESH: motion threshold in mg (~32mg = sensitive; raise to desensitize).
+#define QMI8658_CTRL1_CFG   0x48
+#define QMI8658_CTRL2_ACC   0x2C
+#define QMI8658_WOM_INTCFG  0xA0
+#define QMI8658_WOM_THRESH  0x20
 
-#define IMU_INT_GPIO       GPIO_NUM_17
+#define IMU_INT1_GPIO      GPIO_NUM_17
+#define IMU_INT2_GPIO      GPIO_NUM_21
 
 static i2c_master_dev_handle_t s_dev;
-static SemaphoreHandle_t       s_motion_sem;
+static QueueHandle_t           s_motion_q;   // carries the GPIO num that fired
 
 static esp_err_t rd(uint8_t reg, uint8_t *val)
 {
@@ -55,20 +63,32 @@ static esp_err_t wr(uint8_t reg, uint8_t val)
     return i2c_master_transmit(s_dev, buf, 2, 100);
 }
 
-// ISR: just release the semaphore; all I2C / logic runs in the task.
+// Poll STATUSINT bit7 for the CTRL9 command handshake (set=done, or clear).
+static void wait_cmd_done(bool want_set)
+{
+    for (int i = 0; i < 50; i++) {
+        uint8_t st = 0;
+        if (rd(QMI8658_STATUSINT, &st) == ESP_OK && (bool)(st & 0x80) == want_set) return;
+        vTaskDelay(pdMS_TO_TICKS(2));
+    }
+}
+
+// ISR: just queue which pin fired; all I2C / logging runs in the task.
 static void IRAM_ATTR imu_isr(void *arg)
 {
-    (void)arg;
+    uint32_t gpio = (uint32_t)(uintptr_t)arg;
     BaseType_t hp = pdFALSE;
-    xSemaphoreGiveFromISR(s_motion_sem, &hp);
+    xQueueSendFromISR(s_motion_q, &gpio, &hp);
     if (hp) portYIELD_FROM_ISR();
 }
 
 static void motion_task(void *arg)
 {
     (void)arg;
+    uint32_t gpio;
     for (;;) {
-        if (xSemaphoreTake(s_motion_sem, portMAX_DELAY) == pdTRUE) {
+        if (xQueueReceive(s_motion_q, &gpio, portMAX_DELAY) == pdTRUE) {
+            ESP_LOGI(TAG, "motion INT on GPIO%u", (unsigned)gpio);  // TEMP bring-up diagnostic — remove once confirmed
             idle_notify_activity();
         }
     }
@@ -90,44 +110,43 @@ void imu_start(void)
     uint8_t who = 0;
     if (rd(QMI8658_WHO_AM_I, &who) != ESP_OK || who != QMI8658_WHOAMI_VAL) {
         ESP_LOGW(TAG, "QMI8658 not found (WHO_AM_I=0x%02x); motion wake disabled", who);
+        i2c_master_bus_rm_device(s_dev);
         return;
     }
     ESP_LOGI(TAG, "QMI8658 detected (WHO_AM_I=0x%02x)", who);
 
-    // Configure accel + wake-on-motion via the CTRL9 command interface.
-    wr(QMI8658_CTRL1, 0x60);              // serial IF: addr auto-increment, little-endian
-    wr(QMI8658_CTRL7, 0x00);              // disable sensors while configuring
-    wr(QMI8658_CTRL2, QMI8658_CTRL2_ACC);// accel ODR + full-scale
-    wr(QMI8658_CAL1_L, QMI8658_WOM_THRESH);
-    wr(QMI8658_CAL1_H, QMI8658_WOM_INTCFG);
-    wr(QMI8658_CTRL9, QMI8658_CMD_WOM);  // apply WoM setting
+    // --- Configure wake-on-motion via the CTRL9 command interface ------------
+    wr(QMI8658_CTRL7, 0x00);                  // disable sensors while configuring
+    wr(QMI8658_CTRL2, QMI8658_CTRL2_ACC);     // accel full-scale + low-power ODR
+    wr(QMI8658_CAL1_L, QMI8658_WOM_THRESH);   // WoM threshold (mg)
+    wr(QMI8658_CAL1_H, QMI8658_WOM_INTCFG);   // WoM -> INT1, idle-high, blanking
+    wr(QMI8658_CTRL9, QMI8658_CMD_WOM);       // apply WoM setting
+    wait_cmd_done(true);                      // command accepted
+    wr(QMI8658_CTRL9, QMI8658_CMD_ACK);       // acknowledge
+    wait_cmd_done(false);                     // handshake cleared
+    wr(QMI8658_CTRL7, 0x01);                  // enable accel (low-power WoM mode)
+    wr(QMI8658_CTRL1, QMI8658_CTRL1_CFG);     // enable the INT1 output pin
 
-    // Wait for the command-done handshake, then ack.
-    for (int i = 0; i < 10; i++) {
-        uint8_t st = 0;
-        if (rd(QMI8658_STATUSINT, &st) == ESP_OK && (st & 0x01)) break;
-        vTaskDelay(pdMS_TO_TICKS(2));
-    }
-    wr(QMI8658_CTRL9, QMI8658_CMD_ACK);
-    wr(QMI8658_CTRL7, 0x01);              // enable accel (low-power WoM mode)
-
-    // Motion signal path: ISR -> semaphore -> task -> idle_notify_activity().
-    s_motion_sem = xSemaphoreCreateBinary();
-    if (!s_motion_sem) {
-        ESP_LOGE(TAG, "sem alloc failed");
+    // --- Motion signal path: ISR -> queue -> task -> idle_notify_activity() --
+    s_motion_q = xQueueCreate(4, sizeof(uint32_t));
+    if (!s_motion_q) {
+        ESP_LOGE(TAG, "queue alloc failed");
         i2c_master_bus_rm_device(s_dev);
         return;
     }
 
+    // Watch BOTH IMU INT lines (idle-high, motion pulls low). ANYEDGE during
+    // bring-up so we catch it regardless of which pin/polarity the board uses.
     gpio_config_t io = {
-        .pin_bit_mask = 1ULL << IMU_INT_GPIO,
+        .pin_bit_mask = (1ULL << IMU_INT1_GPIO) | (1ULL << IMU_INT2_GPIO),
         .mode         = GPIO_MODE_INPUT,
         .pull_up_en   = GPIO_PULLUP_ENABLE,
-        .intr_type    = GPIO_INTR_NEGEDGE,   // flip to POSEDGE if INT never fires
+        .intr_type    = GPIO_INTR_ANYEDGE,
     };
     gpio_config(&io);
     gpio_install_isr_service(0);          // harmless (INVALID_STATE) if already installed
-    gpio_isr_handler_add(IMU_INT_GPIO, imu_isr, NULL);
+    gpio_isr_handler_add(IMU_INT1_GPIO, imu_isr, (void *)(uintptr_t)IMU_INT1_GPIO);
+    gpio_isr_handler_add(IMU_INT2_GPIO, imu_isr, (void *)(uintptr_t)IMU_INT2_GPIO);
 
     if (xTaskCreate(motion_task, "imu", 2560, NULL, 5, NULL) != pdPASS) {
         ESP_LOGE(TAG, "failed to create motion task");
