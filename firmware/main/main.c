@@ -19,6 +19,9 @@
 #include "battery.h"
 #include "quick_panel.h"
 #include "idle.h"
+#if CONFIG_YTM_IDLE_DIM_ENABLE
+#include "imu.h"
+#endif
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "esp_timer.h"
@@ -171,6 +174,7 @@ void app_main(void)
         .get_active   = idle_get_active,
     };
     idle_init(&icfg, (uint32_t)(esp_timer_get_time() / 1000));
+    imu_start();   // motion wake; no-op-with-warning if the IMU is absent
 #endif
 
     ESP_LOGI(TAG, "Now Playing up (%s, %d fps).",
