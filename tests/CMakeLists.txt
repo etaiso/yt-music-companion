@@ -51,3 +51,16 @@ if(NOT MSVC)
 endif()
 
 add_test(NAME battery COMMAND test_battery)
+
+# Idle-dim decision logic: pure C (no LVGL/ESP), compiled standalone.
+add_executable(test_idle
+    test_idle.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main/idle.c
+)
+target_include_directories(test_idle PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main)
+
+if(NOT MSVC)
+    target_compile_options(test_idle PRIVATE -Wall -Wextra)
+endif()
+
+add_test(NAME idle COMMAND test_idle)
