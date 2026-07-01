@@ -184,11 +184,11 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_obj_set_size(s_state_dot, 8, 8);
     lv_obj_set_style_radius(s_state_dot, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(s_state_dot, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(s_state_dot, COL_PINK, 0);
+    lv_obj_set_style_bg_color(s_state_dot, COL_PLAYING, 0);
 
     s_state_label = lv_label_create(st);
     lv_obj_set_style_text_font(s_state_label, FONT_LABEL, 0);
-    lv_obj_set_style_text_color(s_state_label, COL_PINK, 0);
+    lv_obj_set_style_text_color(s_state_label, COL_PLAYING, 0);
     lv_obj_set_style_text_letter_space(s_state_label, 1, 0);
     lv_label_set_text(s_state_label, "PLAYING");
 
@@ -483,8 +483,8 @@ void now_playing_update(const now_playing_vm_t *vm)
     set_text(s_src_label, vm->source_name[0] ? vm->source_name : "YOUTUBE MUSIC");
 
     int mode = playing ? 0 : disc ? 1 : 2;   // 0 playing, 1 offline, 2 other
-    lv_color_t dot = mode == 0 ? COL_PINK : mode == 1 ? COL_DANGER : COL_INK4;
-    lv_color_t txt = mode == 0 ? COL_PINK : mode == 1 ? COL_DANGER : COL_INK3;
+    lv_color_t dot = mode == 0 ? COL_PLAYING : mode == 1 ? COL_DANGER : COL_INK4;
+    lv_color_t txt = mode == 0 ? COL_PLAYING : mode == 1 ? COL_DANGER : COL_INK3;
     lv_obj_set_style_bg_color(s_state_dot, dot, 0);
     lv_obj_set_style_text_color(s_state_label, txt, 0);
     if (mode != 0) lv_obj_set_style_bg_opa(s_state_dot, LV_OPA_COVER, 0);
