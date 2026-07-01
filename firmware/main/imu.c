@@ -40,11 +40,14 @@ static const char *TAG = "imu";
 //  CTRL2: bits[6:4]=010 (+/-8g) | bits[3:0]=1100 (low-power 128Hz ODR).
 //  CAL1_H: bits[7:6]=10 -> WoM on INT1, initial level HIGH (so motion pulls it
 //          LOW -> falling edge); bits[5:0]=0x20 blanking samples.
-//  WOM_THRESH: motion threshold in mg (~32mg = sensitive; raise to desensitize).
+//  WOM_THRESH: motion threshold in mg (1 LSB = 1mg). Higher = less sensitive.
+//  0x80 (~128mg) ignores desk bumps/vibration but wakes on a deliberate nudge
+//  or pickup. Raise toward 0xC8 (~200mg) if still too twitchy; lower toward
+//  0x40 (~64mg) to make it easier to trigger.
 #define QMI8658_CTRL1_CFG   0x48
 #define QMI8658_CTRL2_ACC   0x2C
 #define QMI8658_WOM_INTCFG  0xA0
-#define QMI8658_WOM_THRESH  0x20
+#define QMI8658_WOM_THRESH  0x80
 
 #define IMU_INT1_GPIO      GPIO_NUM_17
 #define IMU_INT2_GPIO      GPIO_NUM_21
