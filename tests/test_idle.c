@@ -68,6 +68,13 @@ int main(void)
     g_active = 25;                    // user changed brightness meanwhile
     idle_tick(0, 1050, false);       CHECK(g_applied == 25, "reads live active (got %d)", g_applied);
 
+    printf("# motion path: idle alone crosses threshold and dims\n");
+    setup(1000, 10);
+    idle_notify_activity();               // motion at t=0 seeds last_motion
+    idle_tick(0, 0, false);               CHECK(!idle_is_dimmed(), "fresh, not dimmed");
+    idle_tick(1000, 1000, false);         CHECK(idle_is_dimmed(),  "idle past threshold dims");
+    CHECK(g_applied == 10, "dims to dim_percent via idle (got %d)", g_applied);
+
     printf("\n%d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? EXIT_FAILURE : EXIT_SUCCESS;
 }

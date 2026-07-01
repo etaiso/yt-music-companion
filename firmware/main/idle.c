@@ -44,8 +44,10 @@ void idle_tick(uint32_t touch_inactive_ms, uint32_t now_ms, bool playing)
         return;
     }
 
+    // Unsigned subtraction wraps safely on uint32 overflow (~49 days); ticks
+    // arrive every ~33ms so true elapsed time never approaches that range.
     uint32_t motion_idle = now_ms - s_last_motion_ms;      // ms since last motion
-    uint32_t idle_ms     = touch_inactive_ms < motion_idle // whichever is more recent
+    uint32_t idle_ms     = touch_inactive_ms < motion_idle // smaller idle value = more recent activity
                          ? touch_inactive_ms : motion_idle;
 
     if (s_dimmed) {
