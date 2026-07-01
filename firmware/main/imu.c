@@ -25,7 +25,6 @@ static const char *TAG = "imu";
 #define QMI8658_CTRL1      0x02   // serial IF / addr auto-increment
 #define QMI8658_CTRL2      0x03   // accel: ODR + full-scale
 #define QMI8658_CTRL7      0x08   // sensor enable (aEN = bit0)
-#define QMI8658_CTRL8      0x09   // motion engine / INT selection
 #define QMI8658_CTRL9      0x0A   // host command register
 #define QMI8658_CAL1_L     0x0B   // command arg: WoM threshold (mg)
 #define QMI8658_CAL1_H     0x0C   // command arg: INT map / blanking
@@ -114,7 +113,11 @@ void imu_start(void)
 
     // Motion signal path: ISR -> semaphore -> task -> idle_notify_activity().
     s_motion_sem = xSemaphoreCreateBinary();
-    if (!s_motion_sem) { ESP_LOGE(TAG, "sem alloc failed"); return; }
+    if (!s_motion_sem) {
+        ESP_LOGE(TAG, "sem alloc failed");
+        i2c_master_bus_rm_device(s_dev);
+        return;
+    }
 
     gpio_config_t io = {
         .pin_bit_mask = 1ULL << IMU_INT_GPIO,
@@ -128,6 +131,7 @@ void imu_start(void)
 
     if (xTaskCreate(motion_task, "imu", 2560, NULL, 5, NULL) != pdPASS) {
         ESP_LOGE(TAG, "failed to create motion task");
+        i2c_master_bus_rm_device(s_dev);
         return;
     }
     ESP_LOGI(TAG, "QMI8658 wake-on-motion armed (thr=0x%02x)", QMI8658_WOM_THRESH);
