@@ -35,6 +35,34 @@ config YTM_DISPLAY_BRIGHTNESS
         Applied via the BSP after panel init — AMOLED dims with a panel command,
         there is no separate backlight to PWM.
 
+config YTM_IDLE_DIM_ENABLE
+    bool "Auto-dim the screen after idle"
+    default y
+    help
+        When set, the screen dims to YTM_IDLE_DIM_PERCENT after
+        YTM_IDLE_DIM_MS of no touch and no physical movement, but only while
+        nothing is playing. Any touch or motion (QMI8658 IMU) restores the
+        user's brightness. When unset, the screen never auto-dims and behaves
+        exactly as before.
+
+config YTM_IDLE_DIM_MS
+    int "Idle time before dimming (ms)"
+    depends on YTM_IDLE_DIM_ENABLE
+    default 30000
+    range 1000 600000
+    help
+        Milliseconds with no touch and no motion (and nothing playing) before
+        the screen dims.
+
+config YTM_IDLE_DIM_PERCENT
+    int "Dimmed brightness (percent)"
+    depends on YTM_IDLE_DIM_ENABLE
+    default 10
+    range 1 100
+    help
+        Panel brightness while dimmed. Restored to the user's level on any
+        interaction.
+
 config YTM_WIFI_SSID
     string "WiFi SSID"
     default "changeme"
