@@ -9,9 +9,10 @@ extern "C" {
 #endif
 
 typedef struct {
-    bool present;    // battery detected on the MX1.25 connector
-    int  percent;    // 0..100 state of charge (valid when present)
-    bool charging;   // USB present and actively charging
+    bool present;         // battery detected on the MX1.25 connector
+    int  percent;         // 0..100 state of charge (valid when present)
+    bool charging;        // USB present and actively charging
+    bool external_power;  // external/USB power present (VBUS good) — false = on battery
 } battery_status_t;
 
 // Start the AXP2101 poll task (call once after the BSP I2C bus is up).
@@ -19,6 +20,11 @@ void battery_start(void);
 
 // Copy the latest cached reading. Safe to call from the LVGL tick.
 void battery_get(battery_status_t *out);
+
+// Hard power off the board via the AXP2101 (soft power-off, reg 0x10 bit0).
+// Returns false if the I2C write fails (caller may retry); on success the power
+// rails drop within milliseconds, so execution usually ends inside this call.
+bool battery_power_off(void);
 
 #ifdef __cplusplus
 }

@@ -78,3 +78,19 @@ void battery_get(battery_status_t *out)
     *out = s_status;
     portEXIT_CRITICAL(&s_mux);
 }
+
+bool battery_power_off(void)
+{
+    uint8_t cfg = 0;
+    if (rd(AXP2101_REG_COMMON_CFG, &cfg) != ESP_OK) {
+        ESP_LOGW(TAG, "power-off: read reg 0x%02x failed", AXP2101_REG_COMMON_CFG);
+        return false;
+    }
+    uint8_t buf[2] = { AXP2101_REG_COMMON_CFG, (uint8_t)(cfg | AXP2101_SOFT_PWROFF_BIT) };
+    if (i2c_master_transmit(s_dev, buf, 2, 100) != ESP_OK) {
+        ESP_LOGW(TAG, "power-off: write reg 0x%02x failed", AXP2101_REG_COMMON_CFG);
+        return false;
+    }
+    ESP_LOGW(TAG, "AXP2101 soft power-off issued");
+    return true;
+}

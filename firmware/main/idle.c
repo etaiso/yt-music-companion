@@ -1,10 +1,12 @@
 // idle.c — pure idle-dim decision logic. No ESP/LVGL; host-testable.
 #include "idle.h"
+#include <stddef.h>
 
 static idle_cfg_t    s_cfg;
 static bool          s_dimmed;
 static uint32_t      s_last_motion_ms;
 static volatile bool s_motion_pending;
+static bool          s_power_off_done;   // latched once power_off() succeeds
 
 void idle_init(const idle_cfg_t *cfg, uint32_t now_ms)
 {
@@ -12,6 +14,7 @@ void idle_init(const idle_cfg_t *cfg, uint32_t now_ms)
     s_dimmed         = false;
     s_last_motion_ms = now_ms;
     s_motion_pending = false;
+    s_power_off_done = false;
 }
 
 void idle_notify_activity(void)
@@ -32,7 +35,8 @@ static void restore(void)
     }
 }
 
-void idle_tick(uint32_t touch_inactive_ms, uint32_t now_ms, bool playing)
+void idle_tick(uint32_t touch_inactive_ms, uint32_t now_ms,
+               bool playing, bool power_off_allowed)
 {
     if (s_motion_pending) {
         s_motion_pending = false;
@@ -40,8 +44,8 @@ void idle_tick(uint32_t touch_inactive_ms, uint32_t now_ms, bool playing)
     }
 
     if (playing) {                 // playback counts as activity: stay lit now,
-        s_last_motion_ms = now_ms; // and keep the idle clock fresh so dimming
-        restore();                 // waits a full timeout after playback stops
+        s_last_motion_ms = now_ms; // keep the idle clock fresh, and never power
+        restore();                 // off mid-song.
         return;
     }
 
@@ -56,5 +60,13 @@ void idle_tick(uint32_t touch_inactive_ms, uint32_t now_ms, bool playing)
     } else if (idle_ms >= s_cfg.dim_after_ms) {
         s_cfg.apply(s_cfg.dim_percent);
         s_dimmed = true;
+    }
+
+    // Power-off stage: only on battery, only once. If the callback fails (I2C
+    // error) the flag stays clear so the next tick retries — never left half-off.
+    if (!s_power_off_done && power_off_allowed &&
+        s_cfg.power_off_after_ms != 0u && s_cfg.power_off != NULL &&
+        idle_ms >= s_cfg.power_off_after_ms) {
+        if (s_cfg.power_off()) s_power_off_done = true;
     }
 }

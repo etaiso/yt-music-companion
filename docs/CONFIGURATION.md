@@ -30,6 +30,11 @@ All options live under the **"YT Music board"** menu:
 | Use live network feed | `YTM_USE_NET` | `y` | On: connect to the bridge over Wi-Fi. Off: drive the screen from `mock.c` for an offline hardware demo. |
 | UI theme | `YTM_THEME_DARK` / `YTM_THEME_LIGHT` | Dark | V2 Dark (near-black + album glow) or the same layout in light tokens with the glow disabled. No runtime toggle. |
 | Display brightness | `YTM_DISPLAY_BRIGHTNESS` | `40` | AMOLED brightness, 5–100%. Applied via panel command. This is now the **first-boot default only** — the swipe-down on-device panel adjusts brightness live and persists the choice to NVS, which wins on later boots. Lower it if the screen is harsh. |
+| Auto-dim on idle | `YTM_IDLE_DIM_ENABLE` | `y` | Dim the screen after `YTM_IDLE_DIM_MS` of no touch/motion while nothing is playing; any touch or IMU motion restores brightness. Off = screen never auto-dims. |
+| Idle time before dimming | `YTM_IDLE_DIM_MS` | `30000` | Milliseconds idle before dimming. |
+| Dimmed brightness | `YTM_IDLE_DIM_PERCENT` | `10` | Panel brightness (%) while dimmed. |
+| Auto power-off on idle | `YTM_IDLE_POWEROFF_ENABLE` | `y` | Hard power-off via the AXP2101 after `YTM_IDLE_POWEROFF_MS` of no touch/motion, nothing playing, **and on battery** (not while charging). Wake = PWRON key press (cold boot). Requires `YTM_IDLE_DIM_ENABLE`. |
+| Idle time before power-off | `YTM_IDLE_POWEROFF_MS` | `600000` | Milliseconds idle (on battery) before powering off. Should exceed `YTM_IDLE_DIM_MS`. Default 10 min. |
 | Wi-Fi SSID | `YTM_WIFI_SSID` | `changeme` | **Must be set** for the live feed — network the bridge host is on. |
 | Wi-Fi password | `YTM_WIFI_PASSWORD` | `changeme` | WPA2 passphrase; leave empty for an open network. |
 | Bridge host fallback | `YTM_BRIDGE_HOST` | `""` | Set to skip mDNS and connect straight to a host IP (e.g. `192.168.1.50`). Empty = discover via `_ytmboard._tcp`. |
