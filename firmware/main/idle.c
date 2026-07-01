@@ -39,8 +39,9 @@ void idle_tick(uint32_t touch_inactive_ms, uint32_t now_ms, bool playing)
         s_last_motion_ms = now_ms;
     }
 
-    if (playing) {          // never dim during playback; ensure lit
-        restore();
+    if (playing) {                 // playback counts as activity: stay lit now,
+        s_last_motion_ms = now_ms; // and keep the idle clock fresh so dimming
+        restore();                 // waits a full timeout after playback stops
         return;
     }
 

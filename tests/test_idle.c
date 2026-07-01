@@ -75,6 +75,15 @@ int main(void)
     idle_tick(1000, 1000, false);         CHECK(idle_is_dimmed(),  "idle past threshold dims");
     CHECK(g_applied == 10, "dims to dim_percent via idle (got %d)", g_applied);
 
+    printf("# playback resets the idle timer (grace period after it stops)\n");
+    setup(1000, 10);
+    idle_tick(5000, 5000, false);         CHECK(idle_is_dimmed(),  "long idle dims");
+    idle_tick(6000, 6000, true);          CHECK(!idle_is_dimmed(), "play wakes + resets timer");
+    // Playback stops; touch has still been idle the whole time (6500), but the
+    // timer was reset at 6000, so it must NOT re-dim immediately.
+    idle_tick(6500, 6500, false);         CHECK(!idle_is_dimmed(), "grace period, not re-dimmed");
+    idle_tick(7001, 7001, false);         CHECK(idle_is_dimmed(),  "dims a full timeout after playback stopped");
+
     printf("\n%d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? EXIT_FAILURE : EXIT_SUCCESS;
 }
