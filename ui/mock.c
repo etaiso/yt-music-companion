@@ -4,7 +4,7 @@
 #include <string.h>
 
 // Each scene holds for SCENE_MS, then we advance to the next so a DoD reviewer
-// sees all six states cycle on their own.
+// sees every scene cycle on their own.
 #define SCENE_MS 6000
 
 // Mock cover dimension. Mirrors the board/bridge cover contract (COVER_PX in
