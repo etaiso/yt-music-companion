@@ -304,6 +304,11 @@ static void ws_connect(void)
         .uri = url,
         .reconnect_timeout_ms = 5000,
         .network_timeout_ms = 10000,
+        // Default is 1024 (WEBSOCKET_BUFFER_SIZE_BYTE); the bridge's HTTP
+        // upgrade response occasionally exceeds that on the first connection
+        // attempt ("transport_ws: Header size exceeded buffer size"), forcing
+        // a 5s reconnect before it succeeds. Give it headroom.
+        .buffer_size = 4096,
     };
     s_ws = esp_websocket_client_init(&cfg);
     esp_websocket_register_events(s_ws, WEBSOCKET_EVENT_ANY, ws_event, NULL);
