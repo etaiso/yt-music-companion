@@ -381,7 +381,8 @@ typedef struct {
 
     float        level;            // 0..1 audio energy for the ring visualizer
 
-    bool         host_connected;   // false => disconnected state
+    bool         host_connected;   // false => bridge<->YouTube-Music link down
+    conn_state_t conn_state;       // board<->bridge link: loader / online / offline
 } now_playing_vm_t;
 ```
 

@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "conn.h"   // conn_state_t (board<->bridge link)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -39,7 +41,8 @@ typedef struct {
 
     float       level;             // 0..1 audio energy for the ring visualizer
 
-    bool        host_connected;    // false => disconnected state
+    bool        host_connected;    // false => bridge<->YouTube-Music link down
+    conn_state_t conn_state;       // board<->bridge link: loader / online / offline
 
     // board-local device status (filled by battery.c on hardware, mock.c in sim;
     // NOT from the bridge). present=false hides the indicator.

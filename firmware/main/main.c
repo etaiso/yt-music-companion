@@ -173,7 +173,16 @@ void app_main(void)
     net_backend_start();          // WiFi + mDNS + WebSocket (async)
 #endif
 
-    bsp_display_lock(0);          // guard LVGL while we build the UI
+    // bsp_display_lock(uint32_t) forwards straight to esp_lv_adapter_lock(int32_t):
+    // a timeout of 0 becomes pdMS_TO_TICKS(0) == 0 ticks, i.e. a NON-BLOCKING,
+    // single-attempt mutex take. If the LVGL adapter task holds the lock at that
+    // instant, the take silently fails (return value is never checked here) and
+    // the entire UI build below — including lv_timer_create(tick_cb, ...) — runs
+    // unsynchronized against that task, corrupting LVGL's internal timer list so
+    // tick_cb never fires again. Pass (uint32_t)-1 so it maps to timeout_ms < 0
+    // -> portMAX_DELAY: block until the lock is genuinely held.
+    bsp_display_lock((uint32_t)-1);
+
 #if CONFIG_YTM_USE_NET
     now_playing_set_emit(net_backend_emit);
     net_backend_get_vm(&s_vm);

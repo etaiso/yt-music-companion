@@ -64,3 +64,16 @@ if(NOT MSVC)
 endif()
 
 add_test(NAME idle COMMAND test_idle)
+
+# Connection-state FSM: pure C (no LVGL/ESP), compiled standalone.
+add_executable(test_conn
+    test_conn.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main/conn.c
+)
+target_include_directories(test_conn PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main)
+
+if(NOT MSVC)
+    target_compile_options(test_conn PRIVATE -Wall -Wextra)
+endif()
+
+add_test(NAME conn COMMAND test_conn)

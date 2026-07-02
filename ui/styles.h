@@ -45,6 +45,7 @@ extern "C" {
 #define COL_LINE      lv_color_hex(0xECE2D8)  // borders / dividers
 #define COL_DANGER    lv_color_hex(0xC0392B)  // destructive / offline accent
 #define COL_PLAYING   lv_color_hex(0x059669)  // playing-state dot/label (emerald, darker for cream contrast)
+#define COL_WARN      lv_color_hex(0xB26B00)  // connecting / in-progress accent (amber)
 #define COL_STRIPE    lv_color_hex(0xF3EADF)  // cover placeholder fill
 #define COL_ON_ACCENT lv_color_hex(0xFFFFFF)  // glyph/text drawn on an accent fill
 #define COL_COVER_A   lv_color_hex(0xD8CFC2)  // neutral cover block (ad/empty) — top
@@ -66,6 +67,7 @@ extern "C" {
 #define COL_LINE      lv_color_hex(0x2A2A2D)  // borders / dividers (~white .12)
 #define COL_DANGER    lv_color_hex(0xFF6B6B)  // offline accent
 #define COL_PLAYING   lv_color_hex(0x34D399)  // playing-state dot/label (emerald — was the V2 red)
+#define COL_WARN      lv_color_hex(0xFFB020)  // connecting / in-progress accent (amber)
 #define COL_STRIPE    lv_color_hex(0x16161A)  // cover placeholder fill (raised dark)
 #define COL_ON_ACCENT lv_color_hex(0xFFFFFF)  // glyph/text drawn on an accent fill
 #define COL_COVER_A   lv_color_hex(0x3A3A3D)  // neutral cover block (ad/empty) — top

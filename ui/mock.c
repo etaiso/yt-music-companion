@@ -4,7 +4,7 @@
 #include <string.h>
 
 // Each scene holds for SCENE_MS, then we advance to the next so a DoD reviewer
-// sees all six states cycle on their own.
+// sees every scene cycle on their own.
 #define SCENE_MS 6000
 
 // Mock cover dimension. Mirrors the board/bridge cover contract (COVER_PX in
@@ -73,6 +73,7 @@ typedef enum {
     SC_AD,
     SC_NOTRACK,
     SC_DISCONNECTED,
+    SC_CONNECTING,
     SC__COUNT
 } scene_t;
 
@@ -101,6 +102,7 @@ void mock_init(now_playing_vm_t *vm)
     vm->position_sec  = 72;   // 1:12
     vm->playback      = PB_PLAYING;
     vm->host_connected = true;
+    vm->conn_state    = CONN_ONLINE;
     vm->battery_present = true;
     vm->battery_percent = 64;
     vm->charging        = false;
@@ -123,6 +125,7 @@ static void enter_scene(now_playing_vm_t *vm, scene_t sc)
     // reset to a known playing track, then apply the scene's deltas
     load_track(vm);
     vm->host_connected = true;
+    vm->conn_state     = CONN_ONLINE;
     vm->ad_playing     = false;
     vm->playback       = PB_PLAYING;
 
@@ -139,7 +142,9 @@ static void enter_scene(now_playing_vm_t *vm, scene_t sc)
         case SC_NOTRACK:
             vm->title[0] = vm->artist[0] = vm->album[0] = '\0';
             vm->duration_sec = 0; vm->position_sec = 0;     break;
-        case SC_DISCONNECTED: vm->host_connected = false;   break;
+        case SC_DISCONNECTED: vm->host_connected = false;
+                              vm->conn_state = CONN_OFFLINE;   break;
+        case SC_CONNECTING:   vm->conn_state = CONN_CONNECTING;  break;
         default:                                            break;
     }
 }

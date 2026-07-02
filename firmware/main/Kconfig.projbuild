@@ -84,6 +84,15 @@ config YTM_IDLE_POWEROFF_MS
         before the board powers itself off. Should be larger than YTM_IDLE_DIM_MS
         (the screen dims first, then powers off). Default 600000 = 10 minutes.
 
+config YTM_CONNECT_GRACE_SEC
+    int "Seconds to show the connecting loader before the offline banner"
+    range 3 60
+    default 15
+    help
+        On boot (and after a mid-session WebSocket drop) the board shows a
+        loader while it reaches the bridge. If no state frame arrives within
+        this many seconds, it falls back to the offline banner.
+
 config YTM_WIFI_SSID
     string "WiFi SSID"
     default "changeme"

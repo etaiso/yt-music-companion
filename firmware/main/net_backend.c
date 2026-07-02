@@ -22,10 +22,15 @@
 #include "mdns.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
+#include "esp_timer.h"
+#include "conn.h"
 
 #include "lvgl.h"
 
 static const char *TAG = "ytm-net";
+
+// Monotonic milliseconds for the connection FSM (esp_timer is us since boot).
+static uint32_t now_ms(void) { return (uint32_t)(esp_timer_get_time() / 1000); }
 
 // CONTRACT PAIR: COVER_PX must match the bridge's COVER_PX (bridge/src/config.js).
 // parse_cover() rejects any cover whose header dimensions != COVER_PX, so a
@@ -186,6 +191,7 @@ static void parse_state(const char *json, int len)
     s_vm.host_connected = get_bool(data, "host_connected");
     // level: bridge sends 0 (no audio energy); ring falls back to its pulse.
     s_vm.level = 0.0f;
+    conn_event(CONN_EV_LINK_UP, now_ms());
     xSemaphoreGive(s_lock);
 
     cJSON_Delete(root);
@@ -241,7 +247,7 @@ static void ws_event(void *arg, esp_event_base_t base, int32_t id, void *data)
     case WEBSOCKET_EVENT_DISCONNECTED:
         ESP_LOGW(TAG, "bridge disconnected");
         xSemaphoreTake(s_lock, portMAX_DELAY);
-        s_vm.host_connected = false; // show disconnected state (SPEC §6)
+        conn_event(CONN_EV_LINK_DOWN, now_ms());   // -> loader; grace then OFFLINE
         xSemaphoreGive(s_lock);
         break;
     case WEBSOCKET_EVENT_DATA: {
@@ -298,6 +304,11 @@ static void ws_connect(void)
         .uri = url,
         .reconnect_timeout_ms = 5000,
         .network_timeout_ms = 10000,
+        // Default is 1024 (WEBSOCKET_BUFFER_SIZE_BYTE); the bridge's HTTP
+        // upgrade response occasionally exceeds that on the first connection
+        // attempt ("transport_ws: Header size exceeded buffer size"), forcing
+        // a 5s reconnect before it succeeds. Give it headroom.
+        .buffer_size = 4096,
     };
     s_ws = esp_websocket_client_init(&cfg);
     esp_websocket_register_events(s_ws, WEBSOCKET_EVENT_ANY, ws_event, NULL);
@@ -329,6 +340,7 @@ void net_backend_start(void)
     strncpy(s_vm.source_name, "YouTube Music", sizeof(s_vm.source_name) - 1);
     s_vm.playback = PB_BUFFERING;
     s_vm.host_connected = false;
+    conn_init((uint32_t)CONFIG_YTM_CONNECT_GRACE_SEC * 1000, now_ms());
 
     for (int i = 0; i < 2; i++) {
         s_cover_buf[i] = heap_caps_malloc(COVER_BYTES, MALLOC_CAP_SPIRAM);
@@ -348,6 +360,7 @@ void net_backend_get_vm(now_playing_vm_t *out)
 {
     xSemaphoreTake(s_lock, portMAX_DELAY);
     *out = s_vm;
+    out->conn_state = conn_tick(now_ms());
     xSemaphoreGive(s_lock);
 }
 
