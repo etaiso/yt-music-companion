@@ -4,6 +4,7 @@ set(UI_DIR ${CMAKE_CURRENT_LIST_DIR}/../../ui)
 idf_component_register(
     SRCS "main.c"
          "net_backend.c"
+         "conn.c"
          "battery.c"
          "idle.c"
          "imu.c"

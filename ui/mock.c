@@ -101,6 +101,7 @@ void mock_init(now_playing_vm_t *vm)
     vm->position_sec  = 72;   // 1:12
     vm->playback      = PB_PLAYING;
     vm->host_connected = true;
+    vm->conn_state    = CONN_ONLINE;
     vm->battery_present = true;
     vm->battery_percent = 64;
     vm->charging        = false;
@@ -123,6 +124,7 @@ static void enter_scene(now_playing_vm_t *vm, scene_t sc)
     // reset to a known playing track, then apply the scene's deltas
     load_track(vm);
     vm->host_connected = true;
+    vm->conn_state     = CONN_ONLINE;
     vm->ad_playing     = false;
     vm->playback       = PB_PLAYING;
 
@@ -139,7 +141,8 @@ static void enter_scene(now_playing_vm_t *vm, scene_t sc)
         case SC_NOTRACK:
             vm->title[0] = vm->artist[0] = vm->album[0] = '\0';
             vm->duration_sec = 0; vm->position_sec = 0;     break;
-        case SC_DISCONNECTED: vm->host_connected = false;   break;
+        case SC_DISCONNECTED: vm->host_connected = false;
+                              vm->conn_state = CONN_OFFLINE;   break;
         default:                                            break;
     }
 }
