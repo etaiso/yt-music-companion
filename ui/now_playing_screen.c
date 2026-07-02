@@ -32,6 +32,9 @@ static lv_obj_t  *s_slider;
 static lv_obj_t  *s_play_label;
 static lv_obj_t  *s_like_label;
 static lv_obj_t  *s_banner;        // glassy disconnected banner
+static lv_obj_t  *s_loader;         // full-screen connecting overlay (layer_top)
+static lv_obj_t  *s_load_ring[3];   // breathing rings
+static bool       s_force_full;     // force one rebuild when leaving the loader
 static lv_obj_t  *s_batt_box;    // battery outline container (status bar, right)
 static lv_obj_t  *s_batt_fill;   // inner fill bar (width = percent)
 static lv_obj_t  *s_batt_label;  // "NN%" text
@@ -433,6 +436,78 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     lv_label_set_text(bl, "Can't reach your computer - check it's on and on the same network.");
     lv_obj_add_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
 
+    // ---- connecting loader (breathing rings) ----
+    // Full-screen opaque overlay on the top layer so boot no longer flashes the
+    // offline banner: shown while conn_state == CONN_CONNECTING (see
+    // docs/superpowers/specs/2026-07-01-boot-loader-connection-state-design.md).
+    s_loader = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(s_loader);
+    lv_obj_set_size(s_loader, lv_pct(100), lv_pct(100));
+    lv_obj_center(s_loader);
+    lv_obj_set_style_bg_color(s_loader, COL_BG, 0);
+    lv_obj_set_style_bg_opa(s_loader, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(s_loader, LV_OBJ_FLAG_SCROLLABLE);
+
+    // amber "CONNECTING" status near the top
+    lv_obj_t *lstat = lv_obj_create(s_loader);
+    lv_obj_remove_style_all(lstat);
+    lv_obj_set_size(lstat, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_align(lstat, LV_ALIGN_TOP_MID, 0, 40);
+    lv_obj_set_flex_flow(lstat, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(lstat, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(lstat, 6, 0);
+    lv_obj_clear_flag(lstat, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *ldot = lv_obj_create(lstat);
+    lv_obj_remove_style_all(ldot);
+    lv_obj_set_size(ldot, 8, 8);
+    lv_obj_set_style_radius(ldot, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(ldot, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(ldot, COL_WARN, 0);
+
+    lv_obj_t *ltxt = lv_label_create(lstat);
+    lv_obj_set_style_text_font(ltxt, FONT_LABEL, 0);
+    lv_obj_set_style_text_color(ltxt, COL_WARN, 0);
+    lv_obj_set_style_text_letter_space(ltxt, 1, 0);
+    lv_label_set_text(ltxt, "CONNECTING");
+
+    // three concentric breathing rings, centered
+    static const int ring_sz[3] = { 64, 104, 144 };
+    for (int i = 0; i < 3; i++) {
+        lv_obj_t *r = lv_obj_create(s_loader);
+        lv_obj_remove_style_all(r);
+        lv_obj_set_size(r, ring_sz[i], ring_sz[i]);
+        lv_obj_center(r);
+        lv_obj_set_style_radius(r, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_opa(r, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(r, 3, 0);
+        lv_obj_set_style_border_color(r, COL_PINK, 0);
+        lv_obj_set_style_transform_pivot_x(r, lv_pct(50), 0);
+        lv_obj_set_style_transform_pivot_y(r, lv_pct(50), 0);
+        lv_obj_clear_flag(r, LV_OBJ_FLAG_SCROLLABLE);
+        s_load_ring[i] = r;
+    }
+
+    // center music glyph (bundled IC_MUSIC — no font regen needed)
+    lv_obj_t *lcore = lv_label_create(s_loader);
+    lv_label_set_text(lcore, IC_MUSIC);
+    lv_obj_set_style_text_font(lcore, FONT_ICONS, 0);
+    lv_obj_set_style_text_color(lcore, COL_PINK, 0);
+    lv_obj_center(lcore);
+
+    // caption
+    lv_obj_t *lcap = lv_label_create(s_loader);
+    lv_label_set_long_mode(lcap, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(lcap, 320);
+    lv_obj_set_style_text_align(lcap, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_font(lcap, FONT_META, 0);
+    lv_obj_set_style_text_color(lcap, COL_INK3, 0);
+    lv_label_set_text(lcap, "Connecting to your computer\xE2\x80\xA6");  // trailing ellipsis
+    lv_obj_align(lcap, LV_ALIGN_CENTER, 0, 108);
+
+    lv_obj_add_flag(s_loader, LV_OBJ_FLAG_HIDDEN);   // shown only while connecting
+
     return s_screen;
 }
 
@@ -440,8 +515,28 @@ void now_playing_update(const now_playing_vm_t *vm)
 {
     s_pulse++;
 
+    // ---- connecting: show the loader, animate it, and skip the rebuild so the
+    // per-frame glow recomposite doesn't run behind the opaque overlay ----
+    bool connecting = vm->conn_state == CONN_CONNECTING;
+    if (connecting) {
+        if (lv_obj_has_flag(s_loader, LV_OBJ_FLAG_HIDDEN))
+            lv_obj_clear_flag(s_loader, LV_OBJ_FLAG_HIDDEN);
+        for (int i = 0; i < 3; i++) {
+            float ph = (float)s_pulse * 0.10f - (float)i * 0.7f;  // staggered
+            float a  = 0.5f + 0.5f * sinf(ph);                    // 0..1 breathing
+            lv_obj_set_style_border_opa(s_load_ring[i],
+                (lv_opa_t)((0.15f + 0.45f * a) * 255.0f), 0);
+            lv_obj_set_style_transform_scale(s_load_ring[i],
+                (int32_t)(230.0f + 40.0f * a), 0);                // ~0.90x..1.05x (256=1.0)
+        }
+        s_force_full = true;   // force a full rebuild on the frame we leave the loader
+        return;
+    }
+    if (!lv_obj_has_flag(s_loader, LV_OBJ_FLAG_HIDDEN))
+        lv_obj_add_flag(s_loader, LV_OBJ_FLAG_HIDDEN);
+
     // ---- derive modes (design renderVals) ----
-    bool disc      = !vm->host_connected;
+    bool disc      = vm->conn_state == CONN_OFFLINE || !vm->host_connected;
     bool ad        = vm->ad_playing && !disc;
     bool empty     = (vm->title[0] == '\0') && !ad && !disc;
     bool buffering = vm->playback == PB_BUFFERING && !ad && !empty && !disc;
@@ -469,8 +564,9 @@ void now_playing_update(const now_playing_vm_t *vm)
     now_playing_vm_t cur;
     memcpy(&cur, vm, sizeof cur);
     cur.level = 0.0f;
-    if (!buffering && s_have_last && memcmp(&s_last, &cur, sizeof cur) == 0)
+    if (!buffering && !s_force_full && s_have_last && memcmp(&s_last, &cur, sizeof cur) == 0)
         return;
+    s_force_full = false;
     memcpy(&s_last, &cur, sizeof s_last);
     s_have_last = true;
 
