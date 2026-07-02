@@ -34,6 +34,12 @@ export class YtmdClient {
     this.socket.on("connect", () => {
       console.log("[ytmd] socket connected");
       this.onConnected();
+      // Seed current state immediately: the socket only pushes state-update on
+      // a CHANGE, so a board that connects (or reconnects) while playback has
+      // been sitting idle/paused would otherwise see nothing until the next
+      // actual change. One-time fetch on connect, not a recurring poll — the
+      // socket remains the feed for everything after this (SPEC §4.2/§8).
+      this.#fetchState();
     });
 
     this.socket.on("state-update", (state) => this.onState(state));
@@ -57,6 +63,24 @@ export class YtmdClient {
         }
       }
     });
+  }
+
+  // GET /state once per connect, so a paused/idle player still shows correctly
+  // for a board that just (re)connected — see the "connect" handler above.
+  // Failures are non-fatal: the socket's next real state-update still lands.
+  async #fetchState() {
+    try {
+      const res = await fetch(`${YTMD_BASE}/state`, {
+        headers: { Authorization: this.token }, // raw token, no "Bearer" (SPEC §2)
+      });
+      if (!res.ok) {
+        console.warn(`[ytmd] initial /state fetch -> ${res.status}`);
+        return;
+      }
+      this.onState(await res.json());
+    } catch (err) {
+      console.error(`[ytmd] initial /state fetch failed: ${err.message}`);
+    }
   }
 
   // POST /command {command, data?} with auth header (SPEC §7).
