@@ -483,8 +483,6 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
         lv_obj_set_style_bg_opa(r, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(r, 3, 0);
         lv_obj_set_style_border_color(r, COL_PINK, 0);
-        lv_obj_set_style_transform_pivot_x(r, lv_pct(50), 0);
-        lv_obj_set_style_transform_pivot_y(r, lv_pct(50), 0);
         lv_obj_clear_flag(r, LV_OBJ_FLAG_SCROLLABLE);
         s_load_ring[i] = r;
     }
@@ -524,10 +522,16 @@ void now_playing_update(const now_playing_vm_t *vm)
         for (int i = 0; i < 3; i++) {
             float ph = (float)s_pulse * 0.10f - (float)i * 0.7f;  // staggered
             float a  = 0.5f + 0.5f * sinf(ph);                    // 0..1 breathing
+            // Opacity-only breathing. An earlier version also animated
+            // transform_scale for a grow/shrink effect, but on this board's BSP
+            // (esp_lvgl_adapter + the CO5300 QSPI panel driver) a per-frame
+            // lv_obj_set_style_transform_scale() on these rings hung the LVGL
+            // render task permanently on-device (confirmed by isolating it: the
+            // freeze reproduced with scale animated and opacity-only disabled,
+            // and disappeared the moment transform_scale was removed while
+            // keeping everything else identical). Not worth the risk here.
             lv_obj_set_style_border_opa(s_load_ring[i],
                 (lv_opa_t)((0.15f + 0.45f * a) * 255.0f), 0);
-            lv_obj_set_style_transform_scale(s_load_ring[i],
-                (int32_t)(230.0f + 40.0f * a), 0);                // ~0.90x..1.05x (256=1.0)
         }
         s_force_full = true;   // force a full rebuild on the frame we leave the loader
         return;
