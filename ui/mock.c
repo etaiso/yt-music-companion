@@ -73,6 +73,7 @@ typedef enum {
     SC_AD,
     SC_NOTRACK,
     SC_DISCONNECTED,
+    SC_CONNECTING,
     SC__COUNT
 } scene_t;
 
@@ -143,6 +144,7 @@ static void enter_scene(now_playing_vm_t *vm, scene_t sc)
             vm->duration_sec = 0; vm->position_sec = 0;     break;
         case SC_DISCONNECTED: vm->host_connected = false;
                               vm->conn_state = CONN_OFFLINE;   break;
+        case SC_CONNECTING:   vm->conn_state = CONN_CONNECTING;  break;
         default:                                            break;
     }
 }
