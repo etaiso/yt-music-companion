@@ -50,10 +50,42 @@ static void sim_emit(const char *cmd, int arg)
     fflush(stdout);
 }
 
+// Perf harness (SIM_MARQUEE_PERF=1): pin the "playing, long title, marquee
+// scrolling, position ticking once per second" scenario — no scene rotation or
+// battery churn — and report invalidated pixels per main-loop iteration
+// ("inval <iter> <px>" lines). The board renders in software into PSRAM, so
+// invalidated area is the proxy for frame cost; a spike well above the
+// marquee's steady baseline is the once-per-second stutter seen on hardware.
+// Checked by scripts/check_marquee_perf.sh. SIM_INVAL_AREAS=1 additionally
+// prints each invalidated rect for pinpointing which widget repainted.
+static bool     s_marquee_perf;
+static bool     s_inval_areas;
+static uint64_t s_inval_px;
+
+static void inval_cb(lv_event_t *e)
+{
+    const lv_area_t *a = lv_event_get_param(e);
+    s_inval_px += (uint64_t)lv_area_get_size(a);
+    if (s_inval_areas)
+        printf("area %d,%d %dx%d (%d px)\n", (int)a->x1, (int)a->y1,
+               (int)lv_area_get_width(a), (int)lv_area_get_height(a),
+               (int)lv_area_get_size(a));
+}
+
 static void tick_cb(lv_timer_t *t)
 {
     (void)t;
-    mock_tick(&s_vm, TICK_MS);
+    if (s_marquee_perf) {
+        // minimal repro: only the timeline advances, once per second
+        static uint32_t acc;
+        acc += TICK_MS;
+        if (acc >= 1000) {
+            acc -= 1000;
+            if (++s_vm.position_sec >= s_vm.duration_sec) s_vm.position_sec = 0;
+        }
+    } else {
+        mock_tick(&s_vm, TICK_MS);
+    }
     now_playing_update(&s_vm);
     idle_tick(lv_display_get_inactive_time(NULL), millis(),
               s_vm.playback == PB_PLAYING);
@@ -65,11 +97,18 @@ int main(void)
     lv_init();
     lv_tick_set_cb(millis);
 
-    lv_sdl_window_create(480, 480);
+    lv_display_t *disp = lv_sdl_window_create(480, 480);
     lv_sdl_mouse_create();
 
     now_playing_set_emit(sim_emit);
     mock_init(&s_vm);
+    s_marquee_perf = getenv("SIM_MARQUEE_PERF") != NULL;
+    s_inval_areas  = getenv("SIM_INVAL_AREAS") != NULL;
+    if (s_marquee_perf) {
+        snprintf(s_vm.title, sizeof s_vm.title,
+                 "A Very Long Song Title That Definitely Overflows The Label And Scrolls");
+        lv_display_add_event_cb(disp, inval_cb, LV_EVENT_INVALIDATE_AREA, NULL);
+    }
     now_playing_create(lv_screen_active());
     quick_panel_init(lv_screen_active(), sim_brightness, 40);
     s_active = 40;
@@ -86,6 +125,10 @@ int main(void)
 
     while (1) {
         uint32_t idle = lv_timer_handler();
+        if (s_marquee_perf && s_inval_px) {
+            printf("inval %ld %llu\n", frames, (unsigned long long)s_inval_px);
+            s_inval_px = 0;
+        }
         if (idle == LV_NO_TIMER_READY) idle = 5;
         usleep((idle ? idle : 1) * 1000);
         if (max_frames && ++frames >= max_frames) {

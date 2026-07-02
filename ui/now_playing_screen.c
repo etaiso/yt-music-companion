@@ -436,17 +436,36 @@ lv_obj_t *now_playing_create(lv_obj_t *parent)
     return s_screen;
 }
 
+// The screen's render modes, derived from the VM (design renderVals). Factored
+// out so the update can diff current vs previous modes to gate repaint work.
+typedef struct {
+    bool disc, ad, empty, buffering, paused, playing;
+} np_modes_t;
+
+static np_modes_t derive_modes(const now_playing_vm_t *vm)
+{
+    np_modes_t m;
+    m.disc      = !vm->host_connected;
+    m.ad        = vm->ad_playing && !m.disc;
+    m.empty     = (vm->title[0] == '\0') && !m.ad && !m.disc;
+    m.buffering = vm->playback == PB_BUFFERING && !m.ad && !m.empty && !m.disc;
+    m.paused    = vm->playback == PB_PAUSED && !m.ad && !m.empty && !m.disc;
+    m.playing   = vm->playback == PB_PLAYING && !m.ad && !m.empty && !m.disc;
+    return m;
+}
+
 void now_playing_update(const now_playing_vm_t *vm)
 {
     s_pulse++;
 
-    // ---- derive modes (design renderVals) ----
-    bool disc      = !vm->host_connected;
-    bool ad        = vm->ad_playing && !disc;
-    bool empty     = (vm->title[0] == '\0') && !ad && !disc;
-    bool buffering = vm->playback == PB_BUFFERING && !ad && !empty && !disc;
-    bool paused    = vm->playback == PB_PAUSED && !ad && !empty && !disc;
-    bool playing   = vm->playback == PB_PLAYING && !ad && !empty && !disc;
+    // ---- derive modes ----
+    np_modes_t m = derive_modes(vm);
+    bool disc      = m.disc;
+    bool ad        = m.ad;
+    bool empty     = m.empty;
+    bool buffering = m.buffering;
+    bool paused    = m.paused;
+    bool playing   = m.playing;
 
     // ---- "playing" dot pulse: a tiny 8x8 per-frame animation, kept ahead of the
     // change-gate below so the indicator keeps breathing without a full rebuild.
@@ -471,61 +490,99 @@ void now_playing_update(const now_playing_vm_t *vm)
     cur.level = 0.0f;
     if (!buffering && s_have_last && memcmp(&s_last, &cur, sizeof cur) == 0)
         return;
+    now_playing_vm_t prev = s_last;
+    bool first = !s_have_last;
     memcpy(&s_last, &cur, sizeof s_last);
     s_have_last = true;
+
+    // ---- section gates ----------------------------------------------------
+    // Getting past the memcmp above only means SOMETHING changed — and while a
+    // song plays, position_sec ticks it once per second. LVGL's style/image
+    // setters invalidate their object even when the value is unchanged, and
+    // every invalidated region re-composites the upscaled ambient glow beneath
+    // it on the board's software/PSRAM renderer. Re-running every setter on a
+    // position tick repainted the cover 7x + like/status/meta each second —
+    // the visible once-per-second marquee stutter. So diff the previous VM and
+    // only touch the widgets whose inputs changed (measured by
+    // scripts/check_marquee_perf.sh).
+    np_modes_t pm = derive_modes(&prev);
+    bool mode_changed = first ||
+        pm.disc != disc || pm.ad != ad || pm.empty != empty ||
+        pm.buffering != buffering || pm.paused != paused || pm.playing != playing;
+    bool text_changed = first ||
+        strcmp(prev.title,  vm->title)  != 0 ||
+        strcmp(prev.artist, vm->artist) != 0 ||
+        strcmp(prev.album,  vm->album)  != 0 ||
+        strcmp(prev.source_name, vm->source_name) != 0;
+    bool art_changed  = first || prev.cover_img != vm->cover_img;
+    bool fav_changed  = first || prev.is_favorite != vm->is_favorite;
+    bool time_changed = first ||
+        prev.position_sec != vm->position_sec ||
+        prev.duration_sec != vm->duration_sec ||
+        prev.is_live != vm->is_live;
 
     // ---- rings: a static halo; only recolor when the album palette changes ----
     // no_art uses the neutral palette for ad/idle/disconnected (no usable art):
     // ad/empty paint the gradient cover block, disconnected may hold stale art.
     refresh_palette(vm, ad || empty || disc);
 
-    // ---- status bar ----
+    // ---- status bar (mode-driven colors; setters invalidate, so gate) ----
     set_text(s_src_label, vm->source_name[0] ? vm->source_name : "YOUTUBE MUSIC");
 
-    int mode = playing ? 0 : disc ? 1 : 2;   // 0 playing, 1 offline, 2 other
-    lv_color_t dot = mode == 0 ? COL_PINK : mode == 1 ? COL_DANGER : COL_INK4;
-    lv_color_t txt = mode == 0 ? COL_PINK : mode == 1 ? COL_DANGER : COL_INK3;
-    lv_obj_set_style_bg_color(s_state_dot, dot, 0);
-    lv_obj_set_style_text_color(s_state_label, txt, 0);
-    if (mode != 0) lv_obj_set_style_bg_opa(s_state_dot, LV_OPA_COVER, 0);
-    set_text(s_state_label,
-        mode == 0 ? "PLAYING" : mode == 1 ? "OFFLINE" :
-        buffering ? "BUFFERING" : paused ? "PAUSED" : ad ? "AD" : "IDLE");
+    if (mode_changed) {
+        int mode = playing ? 0 : disc ? 1 : 2;   // 0 playing, 1 offline, 2 other
+        lv_color_t dot = mode == 0 ? COL_PINK : mode == 1 ? COL_DANGER : COL_INK4;
+        lv_color_t txt = mode == 0 ? COL_PINK : mode == 1 ? COL_DANGER : COL_INK3;
+        lv_obj_set_style_bg_color(s_state_dot, dot, 0);
+        lv_obj_set_style_text_color(s_state_label, txt, 0);
+        if (mode != 0) lv_obj_set_style_bg_opa(s_state_dot, LV_OPA_COVER, 0);
+        set_text(s_state_label,
+            mode == 0 ? "PLAYING" : mode == 1 ? "OFFLINE" :
+            buffering ? "BUFFERING" : paused ? "PAUSED" : ad ? "AD" : "IDLE");
+    }
 
     // ---- cover: real art, or the neutral music_note block (ad / empty) ----
-    bool gradient_cover = empty || ad;
-    bool have_art = vm->cover_img && !gradient_cover;
+    // The cover sits directly over the glow's hottest region; a redundant
+    // repaint here is the single most expensive no-op on the board.
+    if (mode_changed || art_changed) {
+        bool gradient_cover = empty || ad;
+        bool have_art = vm->cover_img && !gradient_cover;
 
-    if (gradient_cover) {
-        lv_obj_set_style_bg_color(s_ring.cover_slot, COL_COVER_A, 0);
-        lv_obj_set_style_bg_grad_color(s_ring.cover_slot, COL_COVER_B, 0);
-        lv_obj_set_style_bg_grad_dir(s_ring.cover_slot, LV_GRAD_DIR_VER, 0);
-    } else {
-        lv_obj_set_style_bg_grad_dir(s_ring.cover_slot, LV_GRAD_DIR_NONE, 0);
-        lv_obj_set_style_bg_color(s_ring.cover_slot, COL_STRIPE, 0);
+        if (gradient_cover) {
+            lv_obj_set_style_bg_color(s_ring.cover_slot, COL_COVER_A, 0);
+            lv_obj_set_style_bg_grad_color(s_ring.cover_slot, COL_COVER_B, 0);
+            lv_obj_set_style_bg_grad_dir(s_ring.cover_slot, LV_GRAD_DIR_VER, 0);
+        } else {
+            lv_obj_set_style_bg_grad_dir(s_ring.cover_slot, LV_GRAD_DIR_NONE, 0);
+            lv_obj_set_style_bg_color(s_ring.cover_slot, COL_STRIPE, 0);
+        }
+        if (have_art) {
+            lv_image_set_src(s_cover_img, vm->cover_img);
+            lv_obj_clear_flag(s_cover_img, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(s_cover_img, LV_OBJ_FLAG_HIDDEN);
+        }
+        // music_note glyph only over the neutral block (ad / empty)
+        if (gradient_cover) lv_obj_clear_flag(s_cover_glyph, LV_OBJ_FLAG_HIDDEN);
+        else                lv_obj_add_flag(s_cover_glyph, LV_OBJ_FLAG_HIDDEN);
     }
-    if (have_art) {
-        lv_image_set_src(s_cover_img, vm->cover_img);
-        lv_obj_clear_flag(s_cover_img, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(s_cover_img, LV_OBJ_FLAG_HIDDEN);
-    }
-    // music_note glyph only over the neutral block (ad / empty)
-    if (gradient_cover) lv_obj_clear_flag(s_cover_glyph, LV_OBJ_FLAG_HIDDEN);
-    else                lv_obj_add_flag(s_cover_glyph, LV_OBJ_FLAG_HIDDEN);
 
     // ---- title / artist / album (or buffering shimmer) ----
+    // The shimmer's opacity pulse animates every tick while buffering; the
+    // structural show/hide + text swaps only need to run on a real change.
     if (buffering) {
-        lv_obj_clear_flag(s_shim1, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(s_shim2, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(s_title, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(s_artist, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(s_album, LV_OBJ_FLAG_HIDDEN);
+        if (mode_changed) {
+            lv_obj_clear_flag(s_shim1, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(s_shim2, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(s_title, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(s_artist, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(s_album, LV_OBJ_FLAG_HIDDEN);
+        }
         // subtle shimmer via opacity pulse
         float a = 0.6f + 0.4f * sinf((float)s_pulse * 0.2f);
         lv_obj_set_style_bg_opa(s_shim1, (lv_opa_t)(a * 255), 0);
         lv_obj_set_style_bg_opa(s_shim2, (lv_opa_t)(a * 255), 0);
-    } else {
+    } else if (mode_changed || text_changed) {
         lv_obj_add_flag(s_shim1, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_shim2, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(s_title, LV_OBJ_FLAG_HIDDEN);
@@ -564,7 +621,7 @@ void now_playing_update(const now_playing_vm_t *vm)
     // ---- progress (shown unless empty) ----
     if (empty) {
         lv_obj_add_flag(s_prog_row, LV_OBJ_FLAG_HIDDEN);
-    } else {
+    } else if (mode_changed || time_changed) {
         lv_obj_clear_flag(s_prog_row, LV_OBJ_FLAG_HIDDEN);
         char buf[16];
         if (vm->is_live) {
@@ -588,11 +645,13 @@ void now_playing_update(const now_playing_vm_t *vm)
     set_text(s_play_label, (playing || buffering) ? IC_PAUSE : IC_PLAY);
 
     // ---- like: filled+pink when favorited, outline+grey otherwise ----
-    set_text(s_like_label, IC_LIKE);
-    lv_obj_set_style_text_font(s_like_label,
-        vm->is_favorite ? FONT_ICONS : FONT_ICONS_LINE, 0);
-    lv_obj_set_style_text_color(s_like_label,
-        vm->is_favorite ? COL_PINK : COL_INK3, 0);
+    if (fav_changed) {
+        set_text(s_like_label, IC_LIKE);
+        lv_obj_set_style_text_font(s_like_label,
+            vm->is_favorite ? FONT_ICONS : FONT_ICONS_LINE, 0);
+        lv_obj_set_style_text_color(s_like_label,
+            vm->is_favorite ? COL_PINK : COL_INK3, 0);
+    }
 
     // ---- glassy banner (disconnected only; V1's dim scrim is gone) ----
     if (disc) lv_obj_clear_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
