@@ -122,13 +122,16 @@ int main(void)
         CHECK(out[n - 1] == (uint8_t)(sum & 0xFF), "checksum");
     }
 
-    printf("# build_rpc_result rejects a data_len that would overflow the wire length byte\n");
+    printf("# build_rpc_result rejects data_len at the 254 boundary the fix closes\n");
     {
-        char big[254]; memset(big, 'a', sizeof(big) - 1); big[sizeof(big) - 1] = '\0'; // 253 bytes
-        const char *items[] = { big, "x" };  // data_len = 1+253 + 1+1 = 256 >= 254
+        // One 253-byte item => data_len = 1 + 253 = 254 exactly. This is the boundary the
+        // fix closes: the OLD guard (data_len > 255) accepted 254 and wrapped out[8] to
+        // (2 + 254) & 0xFF = 0; the new guard (2 + data_len > 255) must reject it.
+        char big[254]; memset(big, 'a', sizeof(big) - 1); big[sizeof(big) - 1] = '\0'; // 253 chars
+        const char *items[] = { big };
         uint8_t out[512];   // deliberately large so the cap guard can't be the reason for rejection
-        size_t n = improv_build_rpc_result(IMPROV_CMD_GET_DEVICE_INFO, items, 2, out, sizeof(out));
-        CHECK(n == 0, "expected rejection (got %zu)", n);
+        size_t n = improv_build_rpc_result(IMPROV_CMD_GET_DEVICE_INFO, items, 1, out, sizeof(out));
+        CHECK(n == 0, "expected rejection at data_len==254 (got %zu)", n);
     }
 
     printf("# build_error round-trips\n");
@@ -147,6 +150,24 @@ int main(void)
     {
         uint8_t no_payload[1] = { 0 };
         uint8_t frame[16]; size_t fn = make_frame(frame, no_payload, 0);
+        improv_feed_t r = feed_all(frame, fn, &cmd, &err);
+        CHECK(r == IMPROV_FRAME_ERROR, "expected FRAME_ERROR (got %d)", r);
+    }
+
+    printf("# malformed short RPC frame (plen==1) -> FRAME_ERROR (same plen<2 guard)\n");
+    {
+        uint8_t payload[1] = { IMPROV_CMD_GET_CURRENT_STATE };  // command only, no data_len byte
+        uint8_t frame[16]; size_t fn = make_frame(frame, payload, 1);
+        improv_feed_t r = feed_all(frame, fn, &cmd, &err);
+        CHECK(r == IMPROV_FRAME_ERROR, "expected FRAME_ERROR (got %d)", r);
+    }
+
+    printf("# RPC frame with inner data_len > plen-2 -> FRAME_ERROR (inner-overrun guard)\n");
+    {
+        // plen == 2 (passes the plen<2 guard) but payload[1] claims 5 data bytes when
+        // only plen-2 == 0 are present -> dlen > plen-2, must be rejected before parsing.
+        uint8_t payload[2] = { IMPROV_CMD_WIFI_SETTINGS, 5 };
+        uint8_t frame[16]; size_t fn = make_frame(frame, payload, 2);
         improv_feed_t r = feed_all(frame, fn, &cmd, &err);
         CHECK(r == IMPROV_FRAME_ERROR, "expected FRAME_ERROR (got %d)", r);
     }
