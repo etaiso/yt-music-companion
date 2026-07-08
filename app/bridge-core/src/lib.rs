@@ -4,6 +4,7 @@ pub mod board_server;
 pub mod commands;
 pub mod config;
 pub mod cover;
+pub mod discovery;
 pub mod normalize;
 pub mod state;
 pub mod ytmd;
