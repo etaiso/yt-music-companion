@@ -1,0 +1,47 @@
+name: Release firmware
+
+# On a version tag (e.g. v1.0.0), build the firmware and attach the single-file
+# ytm-firmware.bin to a GitHub Release as a versioned, downloadable archive.
+# This is independent of pages.yml (which serves the bin from the live installer
+# site); it does NOT deploy Pages, so there is no single-deployment conflict.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build a release for"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build firmware + merge single-file image
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5
+          target: esp32s3
+          path: firmware
+          command: idf.py build && idf.py merge-bin -o ../ytm-firmware.bin
+
+      - name: Create or update the release with the firmware asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          test -f ytm-firmware.bin
+          # Create the release if it doesn't exist yet; otherwise just (re)upload
+          # the asset. --clobber makes re-runs idempotent.
+          gh release create "$TAG" ytm-firmware.bin \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG" \
+            --generate-notes \
+          || gh release upload "$TAG" ytm-firmware.bin \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
