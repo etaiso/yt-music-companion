@@ -63,6 +63,35 @@ config YTM_IDLE_DIM_PERCENT
         Panel brightness while dimmed. Restored to the user's level on any
         interaction.
 
+config YTM_IDLE_POWEROFF_ENABLE
+    bool "Power off the board after a longer idle"
+    depends on YTM_IDLE_DIM_ENABLE
+    default y
+    help
+        When set, the board performs an AXP2101 soft power-off after it has been
+        idle (nothing playing, no touch, no motion) for longer than the dim
+        timeout. Waking requires a physical PWRON button press. The timeout is
+        shorter on battery than on external (cable) power. When unset, the board
+        only dims and never powers itself off.
+
+config YTM_IDLE_OFF_BATTERY_MS
+    int "Idle time before power-off on battery (ms)"
+    depends on YTM_IDLE_POWEROFF_ENABLE
+    default 300000
+    range 60000 3600000
+    help
+        Milliseconds idle (nothing playing, no touch, no motion) before the board
+        powers off while running on battery. Must exceed YTM_IDLE_DIM_MS.
+
+config YTM_IDLE_OFF_CABLE_MS
+    int "Idle time before power-off on cable (ms)"
+    depends on YTM_IDLE_POWEROFF_ENABLE
+    default 900000
+    range 60000 3600000
+    help
+        Milliseconds idle before the board powers off while on external (cable)
+        power. Typically longer than the battery timeout. Must exceed YTM_IDLE_DIM_MS.
+
 config YTM_WIFI_SSID
     string "WiFi SSID"
     default "changeme"
