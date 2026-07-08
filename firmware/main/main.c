@@ -51,21 +51,22 @@ static void tick_cb(lv_timer_t *t)
 #else
     mock_tick(&s_vm, TICK_MS);
 #endif
+    // battery_start() runs unconditionally, so the AXP2101 snapshot is valid in
+    // both mock and live builds. Read it once for the VM copy and the idle tick.
+    battery_status_t b;
+    battery_get(&b);
 #if CONFIG_YTM_USE_NET
-    // mock build fills battery itself; live build reads the real AXP2101.
-    {
-        battery_status_t b;
-        battery_get(&b);
-        s_vm.battery_present = b.present;
-        s_vm.battery_percent = b.percent;
-        s_vm.charging        = b.charging;
-    }
+    // mock build fills the VM battery fields itself; live build uses the AXP2101.
+    s_vm.battery_present = b.present;
+    s_vm.battery_percent = b.percent;
+    s_vm.charging        = b.charging;
 #endif
     now_playing_update(&s_vm);
 #if CONFIG_YTM_IDLE_DIM_ENABLE
     idle_tick(lv_display_get_inactive_time(NULL),
               (uint32_t)(esp_timer_get_time() / 1000),
-              s_vm.playback == PB_PLAYING);
+              s_vm.playback == PB_PLAYING,
+              b.external);
 #endif
     quick_panel_set_battery(s_vm.battery_percent, s_vm.charging, s_vm.battery_present);
 }
@@ -123,6 +124,7 @@ static void fw_brightness(int percent)
 // reads the user's current level so a slider change mid-idle is respected.
 static void idle_apply(int percent) { bsp_display_brightness_set(percent); }
 static int  idle_get_active(void)   { return s_active_bright; }
+static void idle_power_off(void) { battery_power_off(); }
 #endif
 
 void app_main(void)
@@ -174,6 +176,11 @@ void app_main(void)
         .dim_percent  = CONFIG_YTM_IDLE_DIM_PERCENT,
         .apply        = idle_apply,
         .get_active   = idle_get_active,
+#if CONFIG_YTM_IDLE_POWEROFF_ENABLE
+        .off_after_battery_ms = CONFIG_YTM_IDLE_OFF_BATTERY_MS,
+        .off_after_cable_ms   = CONFIG_YTM_IDLE_OFF_CABLE_MS,
+        .power_off            = idle_power_off,
+#endif
     };
     idle_init(&icfg, (uint32_t)(esp_timer_get_time() / 1000));
     imu_start();   // motion wake; no-op-with-warning if the IMU is absent

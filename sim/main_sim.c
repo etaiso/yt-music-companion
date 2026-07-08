@@ -56,7 +56,7 @@ static void tick_cb(lv_timer_t *t)
     mock_tick(&s_vm, TICK_MS);
     now_playing_update(&s_vm);
     idle_tick(lv_display_get_inactive_time(NULL), millis(),
-              s_vm.playback == PB_PLAYING);
+              s_vm.playback == PB_PLAYING, false);
     quick_panel_set_battery(s_vm.battery_percent, s_vm.charging, s_vm.battery_present);
 }
 
@@ -74,7 +74,13 @@ int main(void)
     quick_panel_init(lv_screen_active(), sim_brightness, 40);
     s_active = 40;
     // Short idle window so dimming is observable in a short sim run.
-    idle_cfg_t icfg = { 1500, 10, sim_apply, sim_get_active };
+    idle_cfg_t icfg = {
+        .dim_after_ms = 1500,
+        .dim_percent  = 10,
+        .apply        = sim_apply,
+        .get_active   = sim_get_active,
+        // no power_off in the sim
+    };
     idle_init(&icfg, millis());
     now_playing_update(&s_vm);
     lv_timer_create(tick_cb, TICK_MS, NULL);
