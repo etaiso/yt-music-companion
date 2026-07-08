@@ -64,25 +64,38 @@ config YTM_IDLE_DIM_PERCENT
         interaction.
 
 config YTM_IDLE_POWEROFF_ENABLE
-    bool "Auto power-off after long idle (battery only)"
+    bool "Auto power-off after long idle"
     depends on YTM_IDLE_DIM_ENABLE
     default y
     help
-        When set, the board hard-powers-off via the AXP2101 after
-        YTM_IDLE_POWEROFF_MS of no touch, no motion, and nothing playing — but
-        only while running on battery (not while charging / on external power).
-        Once off, only a PWRON key press turns it back on (a cold boot). Reuses
-        the idle tracking that YTM_IDLE_DIM_ENABLE sets up.
+        When set, the board hard-powers-off via the AXP2101 after it has been
+        idle (no touch, no motion, nothing playing) for longer than the timeout.
+        The timeout is shorter on battery (YTM_IDLE_POWEROFF_MS) than on external
+        (cable) power (YTM_IDLE_POWEROFF_CABLE_MS), but it powers off in both
+        cases. Once off, only a PWRON key press turns it back on (a cold boot).
+        Reuses the idle tracking that YTM_IDLE_DIM_ENABLE sets up.
 
 config YTM_IDLE_POWEROFF_MS
-    int "Idle time before power-off (ms)"
+    int "Idle time before power-off on battery (ms)"
     depends on YTM_IDLE_POWEROFF_ENABLE
     default 600000
     range 60000 3600000
     help
         Milliseconds with no touch, no motion, nothing playing, and on battery
         before the board powers itself off. Should be larger than YTM_IDLE_DIM_MS
-        (the screen dims first, then powers off). Default 600000 = 10 minutes.
+        (the screen dims first, then powers off) — this is not enforced by the
+        range, so set it higher than the dim timeout. Default 600000 = 10 minutes.
+
+config YTM_IDLE_POWEROFF_CABLE_MS
+    int "Idle time before power-off on cable (ms)"
+    depends on YTM_IDLE_POWEROFF_ENABLE
+    default 900000
+    range 60000 3600000
+    help
+        Milliseconds idle before the board powers off while on external (cable)
+        power. Typically longer than the battery timeout since there is no battery
+        to conserve. Must exceed YTM_IDLE_DIM_MS (not enforced by the range).
+        Default 900000 = 15 minutes.
 
 config YTM_CONNECT_GRACE_SEC
     int "Seconds to show the connecting loader before the offline banner"

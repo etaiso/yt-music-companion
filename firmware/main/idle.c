@@ -36,7 +36,7 @@ static void restore(void)
 }
 
 void idle_tick(uint32_t touch_inactive_ms, uint32_t now_ms,
-               bool playing, bool power_off_allowed)
+               bool playing, bool external_power)
 {
     if (s_motion_pending) {
         s_motion_pending = false;
@@ -62,11 +62,14 @@ void idle_tick(uint32_t touch_inactive_ms, uint32_t now_ms,
         s_dimmed = true;
     }
 
-    // Power-off stage: only on battery, only once. If the callback fails (I2C
-    // error) the flag stays clear so the next tick retries — never left half-off.
-    if (!s_power_off_done && power_off_allowed &&
-        s_cfg.power_off_after_ms != 0u && s_cfg.power_off != NULL &&
-        idle_ms >= s_cfg.power_off_after_ms) {
+    // Power-off stage: fires on battery or cable, but the cable timeout is
+    // longer (usually). Only once; if the callback fails (I2C error) the flag
+    // stays clear so the next tick retries — never left half-off. A per-source
+    // timeout of 0 disables power-off for that source.
+    uint32_t off_after = external_power ? s_cfg.power_off_after_cable_ms
+                                        : s_cfg.power_off_after_ms;
+    if (!s_power_off_done && s_cfg.power_off != NULL &&
+        off_after != 0u && idle_ms >= off_after) {
         if (s_cfg.power_off()) s_power_off_done = true;
     }
 }
