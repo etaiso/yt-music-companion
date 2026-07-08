@@ -124,7 +124,10 @@ static void fw_brightness(int percent)
 // reads the user's current level so a slider change mid-idle is respected.
 static void idle_apply(int percent) { bsp_display_brightness_set(percent); }
 static int  idle_get_active(void)   { return s_active_bright; }
-static void idle_power_off(void) { battery_power_off(); }
+#endif
+
+#if CONFIG_YTM_IDLE_POWEROFF_ENABLE
+static bool idle_power_off(void) { return battery_power_off(); }
 #endif
 
 void app_main(void)

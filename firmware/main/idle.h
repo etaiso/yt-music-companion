@@ -23,7 +23,8 @@ typedef struct {
     // timeout is 0. Timeouts are chosen by power source and must exceed dim_after_ms.
     uint32_t off_after_battery_ms; // idle ms before power-off on battery
     uint32_t off_after_cable_ms;   // idle ms before power-off on external power
-    void   (*power_off)(void);     // perform the power-off (called at most once)
+    bool   (*power_off)(void);     // perform the power-off; return true on
+                                    // success (latches) or false to retry next tick
 } idle_cfg_t;
 
 // Configure and reset the tracker. `now_ms` is a monotonic millisecond clock;

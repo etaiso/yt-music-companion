@@ -19,7 +19,8 @@ static void fake_apply(int p)     { g_applied = p; }
 static int  fake_get_active(void) { return g_active; }
 
 static int g_powered_off = 0;   // set by fake_power_off()
-static void fake_power_off(void) { g_powered_off = 1; }
+static int g_power_off_result = 1;   // return value of fake_power_off() (1 = success)
+static bool fake_power_off(void) { g_powered_off = 1; return g_power_off_result != 0; }
 
 static void setup(uint32_t dim_after_ms, int dim_percent)
 {
@@ -33,6 +34,7 @@ static void setup(uint32_t dim_after_ms, int dim_percent)
     g_applied = -1;
     g_active  = 60;
     g_powered_off = 0;
+    g_power_off_result = 1;
     idle_init(&cfg, 0);
 }
 
@@ -51,6 +53,7 @@ static void setup_off(uint32_t dim_after_ms, int dim_percent,
     g_applied = -1;
     g_active  = 60;
     g_powered_off = 0;
+    g_power_off_result = 1;
     idle_init(&cfg, 0);
 }
 
@@ -145,6 +148,19 @@ int main(void)
     printf("# power-off disabled when callback is NULL (dim-only config)\n");
     setup(1000, 10);                          // no power_off callback
     idle_tick(60000, 60000, false, false);   CHECK(!idle_has_powered_off(), "no callback -> never off");
+
+    printf("# power_off returning false does NOT latch (retries next tick)\n");
+    setup_off(1000, 10, 5000, 15000);
+    g_power_off_result = 0;                   // simulate I2C write failure
+    idle_tick(5000, 5000, false, false);      CHECK(!idle_has_powered_off(), "failed off does not latch");
+    g_power_off_result = 1;                   // next tick the write succeeds
+    idle_tick(6000, 6000, false, false);      CHECK(idle_has_powered_off(),  "retries and latches on success");
+
+    printf("# per-source zero timeout disables only that source\n");
+    setup_off(1000, 10, 0, 15000);            // battery disabled, cable enabled
+    idle_tick(60000, 60000, false, false);    CHECK(!idle_has_powered_off(), "battery=0 -> never off on battery");
+    setup_off(1000, 10, 0, 15000);
+    idle_tick(15000, 15000, false, true);     CHECK(idle_has_powered_off(),  "cable timeout still fires");
 
     printf("\n%d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? EXIT_FAILURE : EXIT_SUCCESS;

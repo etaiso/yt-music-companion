@@ -72,8 +72,7 @@ void idle_tick(uint32_t touch_inactive_ms, uint32_t now_ms, bool playing,
         uint32_t off_after = external_power ? s_cfg.off_after_cable_ms
                                             : s_cfg.off_after_battery_ms;
         if (off_after != 0u && idle_ms >= off_after) {
-            s_powered_off = true;
-            s_cfg.power_off();
+            if (s_cfg.power_off()) s_powered_off = true;
         }
     }
 }
