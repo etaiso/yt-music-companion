@@ -21,6 +21,10 @@ void battery_start(void);
 // Copy the latest cached reading. Safe to call from the LVGL tick.
 void battery_get(battery_status_t *out);
 
+// Issue an AXP2101 soft power-off (board powers down; PWRON wakes it). Safe to
+// call from the LVGL tick. No-op-with-log if the I2C write fails.
+void battery_power_off(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -17,6 +17,7 @@ extern "C" {
 #define AXP2101_REG_STATUS2     0x01
 #define AXP2101_REG_GAUGE_CFG   0x18  // bit 3 enables the fuel gauge
 #define AXP2101_REG_BAT_PERCENT 0xA4
+#define AXP2101_REG_COMMON_CFG  0x10  // bit 0 = soft power-off (PWRON to wake)
 
 // Decode raw register bytes into out. Pure; no I/O.
 // charging is reported only when a battery is present.
