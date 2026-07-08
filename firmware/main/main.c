@@ -64,18 +64,18 @@ static void tick_cb(lv_timer_t *t)
 #endif
     now_playing_update(&s_vm);
 #if CONFIG_YTM_IDLE_DIM_ENABLE
-    bool on_battery = true;
+    bool external_power = false;
 #if CONFIG_YTM_IDLE_POWEROFF_ENABLE
     {
         battery_status_t pb;
         battery_get(&pb);
-        on_battery = !pb.external_power;   // never power off while on USB/charging
+        external_power = pb.external_power;   // selects the cable power-off timeout
     }
 #endif
     idle_tick(lv_display_get_inactive_time(NULL),
               (uint32_t)(esp_timer_get_time() / 1000),
               s_vm.playback == PB_PLAYING,
-              on_battery);
+              external_power);
 #endif
     quick_panel_set_battery(s_vm.battery_percent, s_vm.charging, s_vm.battery_present);
 }
@@ -203,11 +203,13 @@ void app_main(void)
         .dim_after_ms = CONFIG_YTM_IDLE_DIM_MS,
         .dim_percent  = CONFIG_YTM_IDLE_DIM_PERCENT,
 #if CONFIG_YTM_IDLE_POWEROFF_ENABLE
-        .power_off_after_ms = CONFIG_YTM_IDLE_POWEROFF_MS,
-        .power_off          = idle_power_off,
+        .power_off_after_ms       = CONFIG_YTM_IDLE_POWEROFF_MS,
+        .power_off_after_cable_ms = CONFIG_YTM_IDLE_POWEROFF_CABLE_MS,
+        .power_off                = idle_power_off,
 #else
-        .power_off_after_ms = 0,
-        .power_off          = NULL,
+        .power_off_after_ms       = 0,
+        .power_off_after_cable_ms = 0,
+        .power_off                = NULL,
 #endif
         .apply        = idle_apply,
         .get_active   = idle_get_active,

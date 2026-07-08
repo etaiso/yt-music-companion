@@ -96,7 +96,7 @@ static void tick_cb(lv_timer_t *t)
     }
     now_playing_update(&s_vm);
     idle_tick(lv_display_get_inactive_time(NULL), millis(),
-              s_vm.playback == PB_PLAYING, true);   // sim: always "on battery"
+              s_vm.playback == PB_PLAYING, false);  // sim: always "on battery" (not on cable)
     quick_panel_set_battery(s_vm.battery_percent, s_vm.charging, s_vm.battery_present);
 }
 
@@ -122,12 +122,13 @@ int main(void)
     s_active = 40;
     // Short idle windows so dim + power-off are observable in a short sim run.
     idle_cfg_t icfg = {
-        .dim_after_ms       = 1500,
-        .dim_percent        = 10,
-        .power_off_after_ms = 8000,
-        .apply              = sim_apply,
-        .get_active         = sim_get_active,
-        .power_off          = sim_power_off,
+        .dim_after_ms             = 1500,
+        .dim_percent              = 10,
+        .power_off_after_ms       = 8000,   // battery path (the sim always runs "on battery")
+        .power_off_after_cable_ms = 0,      // unused in the sim
+        .apply                    = sim_apply,
+        .get_active               = sim_get_active,
+        .power_off                = sim_power_off,
     };
     idle_init(&icfg, millis());
     now_playing_update(&s_vm);
