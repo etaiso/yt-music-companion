@@ -60,7 +60,7 @@ mod tests {
         assert_eq!(frame[3], 0); // format RGB565 LE
         assert_eq!(u16::from_le_bytes([frame[4], frame[5]]), 1); // width
         assert_eq!(u16::from_le_bytes([frame[6], frame[7]]), 1); // height
-        assert_eq!(frame.len(), COVER_HEADER_BYTES + 1 * 1 * 2);
+        assert_eq!(frame.len(), COVER_HEADER_BYTES + 2); // 1x1 px * 2 bytes
         // pixel: 0xF800 little-endian -> [0x00, 0xF8]
         assert_eq!(frame[8], 0x00);
         assert_eq!(frame[9], 0xF8);
