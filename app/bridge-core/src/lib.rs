@@ -1,4 +1,5 @@
 //! Native-Rust port of the ytmdesktop → board bridge (was bridge/src/*.js).
+pub mod auth;
 pub mod commands;
 pub mod config;
 pub mod cover;
