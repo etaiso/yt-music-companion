@@ -1,6 +1,6 @@
 // axp2101_decode.h — pure decode of AXP2101 status registers into battery_status_t.
 // Register addresses per the X-Powers AXP2101 datasheet (V1.x):
-//   0x00 PMU status 1  — bit 3 = battery present/online
+//   0x00 PMU status 1  — bit 3 = battery present/online; bit 5 = VBUS (external) present
 //   0x01 PMU status 2  — bits [6:5] charge state: 01=charging, 10=discharging
 //   0xA4 fuel-gauge SOC — battery percentage 0..100 (read-only)
 #pragma once

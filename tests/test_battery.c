@@ -38,6 +38,12 @@ int main(void)
     CHECK(dec(0x08, 0, 100).percent== 100, "soc 100 -> 100");
     CHECK(dec(0x08, 0, 200).percent== 100, "soc 200 (garbage) -> clamped 100");
 
+    printf("# external (VBUS) = status1 bit5\n");
+    CHECK(dec(0x20, 0, 50).external == true,  "bit5 set -> external power");
+    CHECK(dec(0x00, 0, 50).external == false, "bit5 clear -> no external power");
+    CHECK(dec(0x08, 0, 50).external == false, "battery present, no VBUS -> not external");
+    CHECK(dec(0x28, 0, 50).external == true,  "battery + VBUS -> external");
+
     printf("\n%d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? EXIT_FAILURE : EXIT_SUCCESS;
 }
