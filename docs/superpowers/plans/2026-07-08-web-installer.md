@@ -4,7 +4,7 @@
 
 **Goal:** Ship one prebuilt firmware image plus a GitHub Pages install page that flashes the board over USB (Web Serial) and provisions Wi-Fi via Improv-serial — no ESP-IDF, no Node, usually no drivers.
 
-**Architecture:** A pure-C Improv-serial codec and a Wi-Fi-credentials helper (both host-tested) sit under a thin, hardware-only provisioning gate that runs at boot when no valid credentials are stored. `net_backend` reads Wi-Fi creds from NVS (Kconfig becomes fallback only). A static `installer/` site uses ESP Web Tools; CI builds the firmware, merges it into one flashable `.bin`, and deploys the site + binary to GitHub Pages.
+**Architecture:** A pure-C Improv-serial codec and a Wi-Fi-credentials helper (both host-tested) sit under a thin, hardware-only provisioning gate that runs at boot when no valid credentials are stored. `net_backend` reads Wi-Fi creds from NVS (Kconfig becomes fallback only). A static install page under the existing `site/install/` uses ESP Web Tools; the existing Pages workflow builds the firmware, merges it into one flashable `.bin`, and deploys the site + binary to GitHub Pages.
 
 **Tech Stack:** ESP-IDF (C), LVGL v9, pure-C host tests (C11 + CTest via existing `tests/`), ESP Web Tools (`esp-web-install-button`), Improv-serial protocol v1, GitHub Actions + GitHub Pages.
 
@@ -32,12 +32,12 @@
 | `tests/test_improv.c` | Host unit test for the Improv codec. | Create |
 | `tests/test_wifi_creds.c` | Host unit test for the credential predicate. | Create |
 | `tests/CMakeLists.txt` | Register the two new test executables. | Modify |
-| `installer/index.html` | Install page (ESP Web Tools button + copy). | Create |
-| `installer/manifest.json` | ESP Web Tools manifest referencing the merged bin. | Create |
-| `installer/install-button.js` | Vendored ESP Web Tools bundle (pinned, self-hosted). | Create |
-| `installer/.nojekyll` | Disable Jekyll on Pages. | Create |
-| `installer/README.md` | How to build/deploy locally. | Create |
-| `.github/workflows/release.yml` | Build → merge-bin → deploy Pages. | Create |
+| `site/install/index.html` | Install page (ESP Web Tools button + copy). | Create |
+| `site/install/manifest.json` | ESP Web Tools manifest referencing the merged bin. | Create |
+| `site/install/install-button.js` | Vendored ESP Web Tools bundle (pinned, self-hosted). | Create |
+| `site/.nojekyll` | Disable Jekyll on the Pages site. | Create |
+| `site/install/README.md` | How to build/deploy the installer locally. | Create |
+| `.github/workflows/pages.yml` | Extend the **existing** landing-page Pages workflow to also build the firmware and bundle it into `site/install/`. | Modify |
 | `docs/CONFIGURATION.md`, `README.md` | Document the web-installer path; note Wi-Fi is now runtime. | Modify |
 
 ---
@@ -896,14 +896,20 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-## Task 5: Web installer site
+## Task 5: Web installer site (under the existing `site/`)
+
+> **Context:** `origin/main` already publishes a landing page from `site/index.html`
+> to GitHub Pages via `.github/workflows/pages.yml`. GitHub Pages allows only **one
+> deployment per repo**, so the installer lives **inside** that site at
+> `site/install/` and is served by the same (single) Pages deployment. Do NOT add a
+> second Pages workflow.
 
 **Files:**
-- Create: `installer/index.html`, `installer/manifest.json`, `installer/install-button.js`, `installer/.nojekyll`, `installer/README.md`
+- Create: `site/install/index.html`, `site/install/manifest.json`, `site/install/install-button.js`, `site/.nojekyll`, `site/install/README.md`
 
 **Interfaces:**
-- Consumes: the merged firmware binary `ytm-firmware.bin` (produced by Task 6 CI; a locally-built one can be dropped in for testing).
-- Produces: a static site; `manifest.json` references `ytm-firmware.bin` at offset 0 with `improv: true`.
+- Consumes: the merged firmware binary `ytm-firmware.bin` (produced by Task 6 CI into `site/install/`; a locally-built one can be dropped in for testing).
+- Produces: static files under `site/install/`; `manifest.json` references `ytm-firmware.bin` at offset 0 with `improv: true`.
 
 - [ ] **Step 1: Vendor the ESP Web Tools bundle**
 
@@ -911,14 +917,14 @@ Download the pinned bundle so the site is self-contained (no runtime CDN depende
 
 Run:
 ```bash
-mkdir -p installer
-curl -L "https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module" -o installer/install-button.js
+mkdir -p site/install
+curl -L "https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module" -o site/install/install-button.js
 ```
-Expected: `installer/install-button.js` exists and is non-empty (a few hundred KB).
+Expected: `site/install/install-button.js` exists and is non-empty (a few hundred KB).
 
 - [ ] **Step 2: Write the manifest**
 
-Create `installer/manifest.json`:
+Create `site/install/manifest.json`:
 
 ```json
 {
@@ -940,7 +946,7 @@ Create `installer/manifest.json`:
 
 - [ ] **Step 3: Write the install page**
 
-Create `installer/index.html`:
+Create `site/install/index.html`:
 
 ```html
 <!doctype html>
@@ -990,40 +996,41 @@ Create `installer/index.html`:
 
 - [ ] **Step 4: Disable Jekyll + document**
 
-Create `installer/.nojekyll` (empty file):
+Create `site/.nojekyll` (empty file) — covers the whole Pages site:
 
 Run:
 ```bash
-touch installer/.nojekyll
+touch site/.nojekyll
 ```
 
-Create `installer/README.md`:
+Create `site/install/README.md`:
 
 ```markdown
 # Web installer
 
-Static GitHub Pages site that flashes the board and provisions Wi-Fi via
-ESP Web Tools + Improv-serial. No toolchain needed by the end user (Chrome/Edge
-desktop only — Web Serial).
+Lives under the site's `/install/` path and is published by the repo's single
+GitHub Pages deployment (`.github/workflows/pages.yml`). Flashes the board and
+provisions Wi-Fi via ESP Web Tools + Improv-serial. No toolchain needed by the
+end user (Chrome/Edge desktop only — Web Serial).
 
 ## Local test
 
-Web Serial needs a secure context; `http://localhost` counts. From `installer/`:
+Web Serial needs a secure context; `http://localhost` counts. From `site/`:
 
     python -m http.server 8000
 
-Open http://localhost:8000 in Chrome/Edge. Drop a locally-built
+Open http://localhost:8000/install/ in Chrome/Edge. Drop a locally-built
 `ytm-firmware.bin` (see below) next to `manifest.json` to test flashing.
 
 ## Building the firmware binary
 
-CI does this on release (see `.github/workflows/release.yml`). Manually:
+CI does this in the Pages workflow. Manually:
 
     cd firmware && idf.py build
-    idf.py merge-bin -o ../installer/ytm-firmware.bin
+    idf.py merge-bin -o ../site/install/ytm-firmware.bin
 
 `ytm-firmware.bin` is a single image flashed at offset 0 (bootloader +
-partition table + app). It is git-ignored; CI produces it per release.
+partition table + app). It is git-ignored; CI produces it on deploy.
 ```
 
 - [ ] **Step 5: Ignore the built binary**
@@ -1031,51 +1038,64 @@ partition table + app). It is git-ignored; CI produces it per release.
 Add to the repo root `.gitignore`:
 
 ```
-installer/ytm-firmware.bin
+site/install/ytm-firmware.bin
 ```
 
 - [ ] **Step 6: Manual verification**
 
-1. Build a local binary: `cd firmware && idf.py build && idf.py merge-bin -o ../installer/ytm-firmware.bin`.
-2. `cd installer && python -m http.server 8000`.
-3. Open http://localhost:8000 in Chrome — confirm the page renders, the **Install** button appears (not the "unsupported" text), and (optionally, with a board attached) the full flash + Improv Wi-Fi flow completes.
+1. Build a local binary: `cd firmware && idf.py build && idf.py merge-bin -o ../site/install/ytm-firmware.bin`.
+2. From the repo root: `cd site && python -m http.server 8000`.
+3. Open http://localhost:8000/install/ in Chrome — confirm the page renders, the **Install** button appears (not the "unsupported" text), and (optionally, with a board attached) the full flash + Improv Wi-Fi flow completes.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add installer/ .gitignore
-git commit -m "feat(installer): ESP Web Tools install page + manifest
+git add site/install/ site/.nojekyll .gitignore
+git commit -m "feat(installer): ESP Web Tools install page under site/install
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 6: CI release — build, merge-bin, deploy Pages
+## Task 6: Extend the Pages workflow to build + bundle the firmware
 
 **Files:**
-- Create: `.github/workflows/release.yml`
+- Modify: `.github/workflows/pages.yml`
 
 **Interfaces:**
-- Consumes: `firmware/` (ESP-IDF project), `installer/` (static site).
-- Produces: a GitHub Pages deployment containing `installer/` + the freshly built `ytm-firmware.bin`.
+- Consumes: `firmware/` (ESP-IDF project), `site/` (static site incl. `site/install/`).
+- Produces: the repo's single GitHub Pages deployment now also contains
+  `install/ytm-firmware.bin`, built fresh in the workflow.
 
-> **Prerequisite (one-time, manual):** In the repo's **Settings → Pages**, set
-> Source = **GitHub Actions**. Note from project memory: Pages on a private
-> free-plan repo may be unavailable — if the deploy step 403s, either make the
-> repo public or host `installer/` elsewhere (e.g. Netlify drop). The build +
-> artifact-upload steps still work regardless.
+> **Existing workflow (do not duplicate):** `pages.yml` already deploys `site/` to
+> Pages on push to `main` (paths-filtered to `site/**`). We add a firmware build
+> step that writes `ytm-firmware.bin` into `site/install/` before the existing
+> upload, and widen the trigger to include firmware changes. Keep the single
+> `concurrency: pages` group and the one `deploy-pages` step.
+>
+> **Prerequisite (already documented in the file's header comment):** Pages must be
+> enabled with Source = GitHub Actions, and — per project memory and that comment —
+> this needs the repo **public or GitHub Pro**. If deploy 403s, that's the cause;
+> the build + artifact-upload steps still succeed.
 
-- [ ] **Step 1: Write the workflow**
+- [ ] **Step 1: Rewrite pages.yml**
 
-Create `.github/workflows/release.yml`:
+Replace the full contents of `.github/workflows/pages.yml` with:
 
 ```yaml
-name: Release installer
+name: Deploy site (landing + installer)
 
+# Publishes site/ to GitHub Pages, building the firmware into site/install/ so the
+# web installer can flash it. Requires Pages enabled with "Source: GitHub Actions"
+# (and the repo public, or GitHub Pro).
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths:
+      - "site/**"
+      - "firmware/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -1083,12 +1103,17 @@ permissions:
   pages: write
   id-token: write
 
+# Allow one concurrent deployment; a newer push cancels an in-flight run.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -1098,18 +1123,16 @@ jobs:
           esp_idf_version: v5.5
           target: esp32s3
           path: firmware
-          command: idf.py build && idf.py merge-bin -o ../installer/ytm-firmware.bin
+          command: idf.py build && idf.py merge-bin -o ../site/install/ytm-firmware.bin
 
-      - name: Assemble Pages site
-        run: |
-          test -f installer/ytm-firmware.bin
-          cp -r installer _site
+      - name: Verify the installer binary exists
+        run: test -f site/install/ytm-firmware.bin
 
+      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
-
-      - id: deploy
+          path: site
+      - id: deployment
         uses: actions/deploy-pages@v4
 ```
 
@@ -1117,28 +1140,32 @@ jobs:
 
 Run:
 ```bash
-python -c "import yaml,sys; yaml.safe_load(open('.github/workflows/release.yml')); print('yaml ok')"
+python -c "import yaml; yaml.safe_load(open('.github/workflows/pages.yml')); print('yaml ok')"
 ```
 Expected: `yaml ok`.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add .github/workflows/release.yml
-git commit -m "ci: build firmware + deploy web installer to Pages on tag
+git add .github/workflows/pages.yml
+git commit -m "ci: build firmware into site/install and deploy with the landing page
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
 - [ ] **Step 4: End-to-end verification (post-merge)**
 
-After this branch merges to `main` and Pages source is set to GitHub Actions:
+After this branch merges to `main`:
 
-1. Push a tag: `git tag v1.0.0 && git push origin v1.0.0` (or run the workflow via `workflow_dispatch`).
-2. Confirm the Action builds the firmware, produces `ytm-firmware.bin`, and deploys.
-3. Open the Pages URL in Chrome/Edge and run a real flash + Wi-Fi provision against a board.
+1. The push to `main` touching `firmware/**` triggers `pages.yml` (or run it via
+   `workflow_dispatch`).
+2. Confirm the Action builds the firmware, produces `site/install/ytm-firmware.bin`,
+   and deploys the site.
+3. Open `<pages-url>/install/` in Chrome/Edge and run a real flash + Wi-Fi provision
+   against a board.
 
-Record the outcome. If Pages is blocked by the free-plan limitation, note the fallback host used.
+Record the outcome. If Pages is blocked by the free-plan limitation, note the
+fallback host used (e.g. Netlify drop of `site/`).
 
 ---
 
@@ -1155,7 +1182,7 @@ In `docs/CONFIGURATION.md`, under the Wi-Fi rows of the Kconfig table, add a not
 
 ```markdown
 > **Wi-Fi is now a runtime setting.** For end users, the recommended path is the
-> [web installer](../installer/README.md): it flashes a prebuilt image and asks for
+> [web installer](../site/install/README.md): it flashes a prebuilt image and asks for
 > Wi-Fi in the browser (stored in NVS). The `YTM_WIFI_SSID` / `YTM_WIFI_PASSWORD`
 > Kconfig values remain only as a fallback for developer `menuconfig` builds — NVS
 > credentials, when present, always win.
@@ -1170,8 +1197,8 @@ In `README.md`, add a new option above "Option B — On the board" (the manual f
 
 On a computer with **Chrome or Edge**, open the install page, plug in the board,
 click **Install**, and enter your 2.4&nbsp;GHz Wi-Fi when prompted. No ESP-IDF, no
-`menuconfig`. The page is published from `installer/` on each release. See
-[installer/README.md](installer/README.md).
+`menuconfig`. The page is published at `<pages-url>/install/` (from `site/install/`).
+See [site/install/README.md](site/install/README.md).
 
 *(The manual ESP-IDF path below is still available for development.)*
 ```
@@ -1191,7 +1218,8 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ## Self-Review notes
 
-- **Spec coverage:** Firmware Wi-Fi→NVS (Task 3), provisioning boot state + setup screen (Task 4), Improv-serial responder (Tasks 1+4), theme untouched/dark-only (Global Constraints — no task modifies `styles.h`), web installer (Task 5), CI/merge-bin/Pages (Task 6), host tests for parser + creds (Tasks 1–2), docs (Task 7). All spec sections mapped.
+- **Spec coverage:** Firmware Wi-Fi→NVS (Task 3), provisioning boot state + setup screen (Task 4), Improv-serial responder (Tasks 1+4), theme untouched/dark-only (Global Constraints — no task modifies `styles.h`), web installer under `site/install/` (Task 5), CI/merge-bin/Pages via the **existing** `pages.yml` (Task 6), host tests for parser + creds (Tasks 1–2), docs (Task 7). All spec sections mapped.
+- **Existing Pages deployment:** `origin/main` already serves `site/index.html` via `pages.yml`. The installer is folded into that single deployment (`site/install/`, workflow extended) rather than a competing `deploy-pages` — GitHub allows one Pages deployment per repo.
 - **The C++-component risk** from the spec is resolved by implementing the codec in pure C (Task 1), which also satisfies the "host-testable pure function" requirement directly.
 - **Type consistency:** `improv_command_t`, `improv_parser_feed`, `ytm_creds_load/valid/store` signatures are identical everywhere they appear (Tasks 1, 2, 3, 4).
 - **Open risks carried into execution:** (1) USB-Serial-JTAG driver coexisting with the IDF console — verified manually in Task 4 Step 6; our parser's resync tolerates interleaved log bytes on the read side. (2) GitHub Pages on a private free-plan repo — flagged in Task 6 with a fallback.
