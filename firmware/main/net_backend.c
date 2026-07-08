@@ -24,6 +24,7 @@
 #include "sdkconfig.h"
 #include "esp_timer.h"
 #include "conn.h"
+#include "wifi_creds.h"
 
 #include "lvgl.h"
 
@@ -80,9 +81,16 @@ static void wifi_start(void)
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event, NULL));
 
+    // Credentials come from NVS (set by the web installer via provisioning).
+    // Fall back to the Kconfig defaults so a developer menuconfig build still works.
+    char ssid[64], pass[64];
+    if (!ytm_creds_load(ssid, sizeof(ssid), pass, sizeof(pass))) {
+        strncpy(ssid, CONFIG_YTM_WIFI_SSID, sizeof(ssid) - 1); ssid[sizeof(ssid)-1] = '\0';
+        strncpy(pass, CONFIG_YTM_WIFI_PASSWORD, sizeof(pass) - 1); pass[sizeof(pass)-1] = '\0';
+    }
     wifi_config_t wc = {0};
-    strncpy((char *)wc.sta.ssid, CONFIG_YTM_WIFI_SSID, sizeof(wc.sta.ssid) - 1);
-    strncpy((char *)wc.sta.password, CONFIG_YTM_WIFI_PASSWORD, sizeof(wc.sta.password) - 1);
+    strncpy((char *)wc.sta.ssid, ssid, sizeof(wc.sta.ssid) - 1);
+    strncpy((char *)wc.sta.password, pass, sizeof(wc.sta.password) - 1);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
     ESP_ERROR_CHECK(esp_wifi_start());

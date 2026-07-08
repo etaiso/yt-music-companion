@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YT Music Companion — Installer</title>
+  <script type="module" src="./install-button.js"></script>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #0b0b0d;
+           color: #f2f2f4; display: grid; place-items: center; min-height: 100vh; }
+    main { max-width: 30rem; padding: 2rem; text-align: center; }
+    h1 { font-size: 1.4rem; margin: 0 0 .5rem; }
+    p  { color: #b9b9c0; line-height: 1.5; }
+    ol { text-align: left; color: #b9b9c0; line-height: 1.7; }
+    .note { font-size: .85rem; color: #8a8a92; margin-top: 1.5rem; }
+    esp-web-install-button { display: inline-block; margin: 1.5rem 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>YT Music Companion</h1>
+    <p>Plug the board into this computer with a USB cable, then click Install.</p>
+
+    <esp-web-install-button manifest="./manifest.json">
+      <button slot="activate">Install</button>
+      <span slot="unsupported">Your browser can't flash the board — use
+        <b>Chrome</b> or <b>Edge</b> on a desktop computer.</span>
+      <span slot="not-allowed">Serial access was blocked. Reload and allow it.</span>
+    </esp-web-install-button>
+
+    <ol>
+      <li>Click <b>Install</b> and pick the board's serial port.</li>
+      <li>Wait for flashing to finish (~1&nbsp;minute).</li>
+      <li>Enter your <b>2.4&nbsp;GHz Wi-Fi</b> name and password when asked.</li>
+      <li>The board reboots and connects. Play a song on ytmdesktop.</li>
+    </ol>
+
+    <p class="note">Requires Chrome or Edge on desktop (Web Serial).
+      Safari, Firefox, and iOS aren't supported.</p>
+  </main>
+</body>
+</html>

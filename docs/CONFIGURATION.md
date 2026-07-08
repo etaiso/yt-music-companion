@@ -44,6 +44,12 @@ All options live under the **"YT Music board"** menu:
 > flashing a live build — the `changeme` defaults won't connect. The board is 2.4GHz
 > only, so the SSID must be a 2.4GHz network on the same subnet as the bridge.
 
+> **Wi-Fi is now a runtime setting.** For end users, the recommended path is the
+> [web installer](../site/install/README.md): it flashes a prebuilt image and asks for
+> Wi-Fi in the browser (stored in NVS). The `YTM_WIFI_SSID` / `YTM_WIFI_PASSWORD`
+> Kconfig values remain only as a fallback for developer `menuconfig` builds — NVS
+> credentials, when present, always win.
+
 The Wi-Fi / bridge options only appear when `YTM_USE_NET` is enabled.
 
 ## Bridge (runtime, env vars)

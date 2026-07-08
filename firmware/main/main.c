@@ -12,6 +12,7 @@
 
 #if CONFIG_YTM_USE_NET
 #include "net_backend.h"
+#include "provisioning.h"
 #else
 #include "mock.h"
 #endif
@@ -170,6 +171,7 @@ void app_main(void)
     battery_start();
 
 #if CONFIG_YTM_USE_NET
+    provisioning_gate();          // first boot only: Improv Wi-Fi setup, else no-op
     net_backend_start();          // WiFi + mDNS + WebSocket (async)
 #endif
 

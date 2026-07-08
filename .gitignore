@@ -15,3 +15,6 @@ dependencies.lock
 # Editor
 *.swp
 .superpowers/
+
+# Web installer (built by CI, not vendored)
+site/install/ytm-firmware.bin

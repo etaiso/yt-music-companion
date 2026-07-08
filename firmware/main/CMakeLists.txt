@@ -4,6 +4,9 @@ set(UI_DIR ${CMAKE_CURRENT_LIST_DIR}/../../ui)
 idf_component_register(
     SRCS "main.c"
          "net_backend.c"
+         "wifi_creds.c"
+         "improv_serial.c"
+         "provisioning.c"
          "conn.c"
          "battery.c"
          "idle.c"
@@ -28,6 +31,7 @@ idf_component_register(
     REQUIRES esp32_s3_touch_amoled_2_16
              esp_websocket_client esp_wifi mdns json nvs_flash esp_netif esp_event
              esp_driver_i2c esp_driver_gpio esp_timer
+             esp_driver_usb_serial_jtag
 )
 
 # Generated fonts (ui/mdi_*.c, ui/inter_*.c) use the lv_font_conv include

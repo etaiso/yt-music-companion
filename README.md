@@ -60,8 +60,8 @@ data. See [docs/PROJECT-OVERVIEW.md](docs/PROJECT-OVERVIEW.md) for full status a
 
 ## Quick start
 
-Two ways to run it: the desktop simulator (fastest, no hardware) or the real board fed
-by live music.
+Three ways to run it: the desktop simulator (fastest, no hardware), the real board via
+the web installer (no toolchain), or the real board built from source with ESP-IDF.
 
 ### Option A — Desktop simulator (no hardware)
 
@@ -74,7 +74,16 @@ cd sim && cmake -B build && cmake --build build && ./build/ytm_sim
 
 On Windows, see [sim/README.md](sim/README.md) for the MSYS2 + SDL2 setup.
 
-### Option B — On the board, with live music
+### Option B — Web installer (no toolchain)
+
+On a computer with **Chrome or Edge**, open the install page, plug in the board,
+click **Install**, and enter your 2.4&nbsp;GHz Wi-Fi when prompted. No ESP-IDF, no
+`menuconfig`. The page is published at `<pages-url>/install/` (from `site/install/`).
+See [site/install/README.md](site/install/README.md).
+
+*(The manual ESP-IDF path below is still available for development.)*
+
+### Option C — On the board, with ESP-IDF (for development)
 
 **Prerequisites:**
 
