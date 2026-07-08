@@ -59,6 +59,12 @@ pub async fn connect(
         .namespace(ytmd_realtime_namespace())
         .auth(json!({ "token": token }))
         .transport_type(TransportType::Websocket)
+        // Mirror the JS client (bridge/src/ytmd.js): reconnection:true,
+        // reconnectionDelay:1000, reconnectionDelayMax:5000. reconnect_on_disconnect
+        // ensures a SERVER-initiated disconnect also triggers reconnection.
+        .reconnect(true)
+        .reconnect_on_disconnect(true)
+        .reconnect_delay(1000, 5000)
         .on("state-update", state_cb)
         .on(Event::Connect, connect_cb)
         .on(Event::Close, close_cb)

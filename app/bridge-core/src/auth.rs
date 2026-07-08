@@ -24,6 +24,11 @@ pub async fn save_token(token: &str) -> Result<()> {
     tokio::fs::write(&path, serde_json::to_string_pretty(&body)?)
         .await
         .with_context(|| format!("writing token to {}", path.display()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = tokio::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).await;
+    }
     Ok(())
 }
 

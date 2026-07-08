@@ -28,7 +28,10 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
         let _ = events.send(BridgeEvent::State(s));
     };
 
-    set_state(BridgeState::Starting);
+    // Single source of truth for the current state, threaded through every
+    // transition so recovery (e.g. YtmdDisconnected -> WaitingForBoard) works.
+    let mut cur = BridgeState::Starting;
+    set_state(cur);
 
     // Board server + command handling.
     let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel::<(String, Option<f64>)>();
@@ -40,7 +43,8 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
     let _discovery = discovery::start()?;
 
     // Auth (surfaces the code via BridgeEvent + moves to NotAuthorized first).
-    set_state(BridgeState::NotAuthorized);
+    cur = BridgeState::NotAuthorized;
+    set_state(cur);
     let ev_for_code = events.clone();
     let token = auth::ensure_token(&http, move |code| {
         let _ = ev_for_code.send(BridgeEvent::AuthCode { code: code.to_owned() });
@@ -53,7 +57,8 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
     let (ydisc_tx, mut ydisc_rx) = mpsc::unbounded_channel::<()>();
     let ytmd = Arc::new(ytmd::connect(http.clone(), token.clone(), state_tx, yconn_tx, ydisc_tx).await?);
 
-    set_state(BridgeState::WaitingForBoard);
+    cur = BridgeState::WaitingForBoard;
+    set_state(cur);
 
     // Shared last-vm for seek clamping + cover dedupe.
     let last_vm = Arc::new(Mutex::new(None::<normalize::NowPlayingVm>));
@@ -112,10 +117,16 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
                     last_state = Some(st.clone());
                     push_vm(&st, true, &board, &last_vm, &last_cover_url, &emit).await;
                 }
+                // Fires on every connect incl. reconnect: idempotent on first
+                // connect (WaitingForBoard -> WaitingForBoard), recovers after a
+                // drop (YtmdDisconnected -> WaitingForBoard).
+                cur = state::next_state(cur, Signal::Authorized);
+                set_state(cur);
             }
             Some(()) = ydisc_rx.recv() => {
                 emit(BridgeEvent::Log("[ytmd] socket disconnected".into()));
-                set_state(state::next_state(BridgeState::WaitingForBoard, Signal::YtmdDropped));
+                cur = state::next_state(cur, Signal::YtmdDropped);
+                set_state(cur);
                 // Tell the board the host went away.
                 let vm = last_vm.lock().await.clone();
                 if let Some(mut v) = vm {
@@ -124,10 +135,12 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
                 }
             }
             Some(()) = board_conn_rx.recv() => {
-                set_state(state::next_state(BridgeState::WaitingForBoard, Signal::BoardAttached));
+                cur = state::next_state(cur, Signal::BoardAttached);
+                set_state(cur);
             }
             Some(()) = board_disc_rx.recv() => {
-                set_state(state::next_state(BridgeState::BoardConnected, Signal::BoardDetached));
+                cur = state::next_state(cur, Signal::BoardDetached);
+                set_state(cur);
             }
             else => break,
         }
