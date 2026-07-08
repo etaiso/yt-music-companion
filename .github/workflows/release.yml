@@ -28,7 +28,9 @@ jobs:
           esp_idf_version: v5.5
           target: esp32s3
           path: firmware
-          command: idf.py build && idf.py merge-bin -o ../ytm-firmware.bin
+          # merge-bin resolves -o relative to the build dir (firmware/build), so
+          # two levels up writes ytm-firmware.bin at the repo root for the next step.
+          command: idf.py build && idf.py merge-bin -o ../../ytm-firmware.bin
 
       - name: Create or update the release with the firmware asset
         env:
