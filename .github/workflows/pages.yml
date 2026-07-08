@@ -37,7 +37,9 @@ jobs:
           esp_idf_version: v5.5
           target: esp32s3
           path: firmware
-          command: idf.py build && idf.py merge-bin -o ../site/install/ytm-firmware.bin
+          # merge-bin resolves -o relative to the build dir (firmware/build), so
+          # two levels up reaches the repo root, then into the site.
+          command: idf.py build && idf.py merge-bin -o ../../site/install/ytm-firmware.bin
 
       - name: Verify the installer binary exists
         run: test -f site/install/ytm-firmware.bin
