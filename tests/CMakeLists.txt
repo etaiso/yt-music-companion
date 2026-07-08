@@ -77,3 +77,14 @@ if(NOT MSVC)
 endif()
 
 add_test(NAME conn COMMAND test_conn)
+
+# Improv-serial codec: pure C (no ESP/LVGL), compiled standalone.
+add_executable(test_improv
+    test_improv.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main/improv_serial.c
+)
+target_include_directories(test_improv PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main)
+if(NOT MSVC)
+    target_compile_options(test_improv PRIVATE -Wall -Wextra)
+endif()
+add_test(NAME improv COMMAND test_improv)
