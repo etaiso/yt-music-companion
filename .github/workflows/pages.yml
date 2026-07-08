@@ -1,12 +1,14 @@
-name: Deploy landing page
+name: Deploy site (landing + installer)
 
-# Publishes site/ to GitHub Pages. Requires Pages to be enabled with
-# "Source: GitHub Actions" in repo settings (and the repo public, or GitHub Pro).
+# Publishes site/ to GitHub Pages, building the firmware into site/install/ so the
+# web installer can flash it. Requires Pages enabled with "Source: GitHub Actions"
+# (and the repo public, or GitHub Pro).
 on:
   push:
     branches: [main]
     paths:
       - "site/**"
+      - "firmware/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -28,6 +30,18 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Build firmware + merge single-file image
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5
+          target: esp32s3
+          path: firmware
+          command: idf.py build && idf.py merge-bin -o ../site/install/ytm-firmware.bin
+
+      - name: Verify the installer binary exists
+        run: test -f site/install/ytm-firmware.bin
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
