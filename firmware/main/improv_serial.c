@@ -49,11 +49,21 @@ improv_feed_t improv_parser_feed(improv_parser_t *p, uint8_t b,
         if (err) *err = IMPROV_ERR_INVALID_RPC;
         result = IMPROV_FRAME_ERROR;
     } else if (type == TYPE_RPC) {
+        if (plen < 2) {
+            if (err) *err = IMPROV_ERR_INVALID_RPC;
+            improv_parser_reset(p);
+            return IMPROV_FRAME_ERROR;
+        }
         const uint8_t *payload = p->buf + 9;
         memset(out, 0, sizeof(*out));
         out->command = (improv_cmd_t)payload[0];
         uint8_t dlen = payload[1];
         const uint8_t *data = payload + 2;
+        if (dlen > (uint8_t)(plen - 2)) {
+            if (err) *err = IMPROV_ERR_INVALID_RPC;
+            improv_parser_reset(p);
+            return IMPROV_FRAME_ERROR;
+        }
         if (out->command == IMPROV_CMD_WIFI_SETTINGS) {
             uint8_t off = 0;
             if (take_str(data, dlen, &off, out->ssid) != 0 ||
@@ -103,7 +113,8 @@ size_t improv_build_rpc_result(improv_cmd_t cmd, const char *const *items,
     size_t data_len = 0;
     for (uint8_t i = 0; i < n; i++) data_len += 1 + strlen(items[i]);
     size_t total = 9 + 2 + data_len + 1;   // hdr..len + cmd + data_len + data + checksum
-    if (cap < total || data_len > 255) return 0;
+    // Wire length byte out[8] holds (2 + data_len); reject if that would overflow a uint8_t.
+    if (cap < total || 2 + data_len > 255) return 0;
     memcpy(out, HDR, 6);
     out[6] = VERSION; out[7] = TYPE_RPC_RESULT;
     out[8] = (uint8_t)(2 + data_len);
