@@ -88,3 +88,14 @@ if(NOT MSVC)
     target_compile_options(test_improv PRIVATE -Wall -Wextra)
 endif()
 add_test(NAME improv COMMAND test_improv)
+
+# Wi-Fi credential predicate: pure C, compiled standalone.
+add_executable(test_wifi_creds
+    test_wifi_creds.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main/wifi_creds.c
+)
+target_include_directories(test_wifi_creds PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../firmware/main)
+if(NOT MSVC)
+    target_compile_options(test_wifi_creds PRIVATE -Wall -Wextra)
+endif()
+add_test(NAME wifi_creds COMMAND test_wifi_creds)
