@@ -36,6 +36,16 @@ pub struct BoardServer {
     latest: Arc<Mutex<Snapshot>>,
 }
 
+/// Signals `board_disconnected_tx` on drop. Only constructed after a
+/// successful WS upgrade, so a raw-TCP probe that never upgrades can't fire
+/// a spurious disconnect for a connect that was never signaled either.
+struct DisconnectGuard(mpsc::UnboundedSender<()>);
+impl Drop for DisconnectGuard {
+    fn drop(&mut self) {
+        let _ = self.0.send(());
+    }
+}
+
 pub async fn start(
     cmd_tx: mpsc::UnboundedSender<(String, Option<f64>)>,
     board_connected_tx: mpsc::UnboundedSender<()>,
@@ -58,11 +68,9 @@ pub async fn start(
             let conn = board_connected_tx.clone();
             let disc = board_disconnected_tx.clone();
             tokio::spawn(async move {
-                let _ = conn.send(());
-                if let Err(e) = handle_client(stream, sub, snap, cmd).await {
+                if let Err(e) = handle_client(stream, sub, snap, cmd, conn, disc).await {
                     tracing::debug!("[board] client ended: {e}");
                 }
-                let _ = disc.send(());
             });
         }
     });
@@ -75,8 +83,19 @@ async fn handle_client(
     mut sub: broadcast::Receiver<BoardOutbound>,
     latest: Arc<Mutex<Snapshot>>,
     cmd_tx: mpsc::UnboundedSender<(String, Option<f64>)>,
+    board_connected_tx: mpsc::UnboundedSender<()>,
+    board_disconnected_tx: mpsc::UnboundedSender<()>,
 ) -> Result<()> {
-    let ws = tokio_tungstenite::accept_async(stream).await?;
+    // Only a successful WS upgrade counts as a board attaching; a raw TCP
+    // probe (port scan, health check) that never upgrades must not flip the
+    // orchestrator's attach/detach state.
+    let ws = match tokio_tungstenite::accept_async(stream).await {
+        Ok(ws) => ws,
+        Err(e) => return Err(e.into()),
+    };
+    let _ = board_connected_tx.send(());
+    let _disconnect_guard = DisconnectGuard(board_disconnected_tx);
+
     let (mut tx, mut rx) = ws.split();
     tracing::info!("[board] client connected");
 
