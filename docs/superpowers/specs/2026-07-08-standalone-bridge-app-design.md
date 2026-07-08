@@ -1,7 +1,7 @@
 # Standalone bridge app — design
 
 **Date:** 2026-07-08
-**Status:** Approved (brainstorming)
+**Status:** Approved — **Phase 0 spike PASSED (2026-07-09) → Branch T (Tauri) selected.**
 
 ## Problem
 
@@ -63,6 +63,15 @@ provided; the maintainer runs it and reports the outcome.
 
 The spike is genuinely disposable: its auth/socket/mDNS code informs whichever branch wins
 but is not shipped as-is.
+
+**Result (2026-07-09): PASSED clean → Branch T.** The throwaway spike lives at
+`spike/ytmd-rust/`. All three criteria met against real ytmdesktop on Windows:
+`reqwest` completed the auth handshake (token persisted), `rust_socketio` streamed live
+`state-update`s (verified track/playback/position changes), and `mdns-sd` advertised
+`_ytmboard._tcp` and resolved it (correct TXT, IPv4 + IPv6). No protocol/version friction.
+Build side also de-risked: compiles clean on Windows with the **GNU** toolchain + MinGW gcc
+(the default MSVC toolchain fails to link here); TLS via schannel, no OpenSSL. **Proceed on
+Branch T.**
 
 ## Stack-independent core (true for both branches)
 
@@ -160,7 +169,7 @@ path**, demoting developer instructions:
 
 ## Open questions for planning
 
-- **Spike outcome** determines Branch T vs E — the plan front-loads Phase 0 and gates on it.
+- ~~**Spike outcome** determines Branch T vs E~~ — **resolved: spike passed, Branch T.**
 - macOS: unsigned `.app` Gatekeeper flow wording; whether a universal binary or two arch
   builds. (Signing remains out of scope for v1.)
 - Launch-at-login mechanics per OS (Login Items vs registry Run key) — provided by the
