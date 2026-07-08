@@ -1,6 +1,7 @@
 #include "provisioning.h"
 #include "improv_serial.h"
 #include "wifi_creds.h"
+#include "sdkconfig.h"
 
 #include "driver/usb_serial_jtag.h"
 #include "esp_wifi.h"
@@ -103,6 +104,13 @@ void provisioning_gate(void)
 {
     char ssid[64], pass[64];
     if (ytm_creds_load(ssid, sizeof(ssid), pass, sizeof(pass))) return;  // already set up
+
+    // A developer menuconfig build with a real Kconfig SSID skips provisioning
+    // entirely; net_backend then connects using the Kconfig fallback. End-user
+    // builds keep the "changeme" default (invalid), so they still provision.
+#ifdef CONFIG_YTM_WIFI_SSID
+    if (ytm_creds_valid(CONFIG_YTM_WIFI_SSID)) return;
+#endif
 
     ESP_LOGI(TAG, "no Wi-Fi creds; entering Improv provisioning");
     show_setup_screen();
