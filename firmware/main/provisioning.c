@@ -36,6 +36,15 @@ static void send_device_info(void)
     if (n) wr(o, n);
 }
 
+static void send_wifi_result(void)
+{
+    // Improv success requires an RPC result for WIFI_SETTINGS; the datum is the
+    // redirect-URL list, which we leave empty (no companion web app to open).
+    uint8_t o[32];
+    size_t n = improv_build_rpc_result(IMPROV_CMD_WIFI_SETTINGS, NULL, 0, o, sizeof(o));
+    if (n) wr(o, n);
+}
+
 static void wifi_ev(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
     (void)arg; (void)data;
@@ -66,9 +75,9 @@ static bool wifi_try(const char *ssid, const char *pass)
     wifi_config_t wc = {0};
     strncpy((char *)wc.sta.ssid, ssid, sizeof(wc.sta.ssid) - 1);
     strncpy((char *)wc.sta.password, pass, sizeof(wc.sta.password) - 1);
-    xEventGroupClearBits(s_wifi_events, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
     esp_wifi_disconnect();
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
+    xEventGroupClearBits(s_wifi_events, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
     esp_wifi_connect();
     EventBits_t bits = xEventGroupWaitBits(s_wifi_events,
         WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdTRUE, pdFALSE, pdMS_TO_TICKS(15000));
@@ -123,6 +132,7 @@ void provisioning_gate(void)
             if (wifi_try(cmd.ssid, cmd.password)) {
                 ESP_ERROR_CHECK(ytm_creds_store(cmd.ssid, cmd.password));
                 send_state(IMPROV_STATE_PROVISIONED);
+                send_wifi_result();               // Improv v1: RPC result closes setup
                 vTaskDelay(pdMS_TO_TICKS(500));   // let the frame drain
                 esp_restart();                     // clean reboot into normal app
             } else {
