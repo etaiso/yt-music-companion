@@ -6,7 +6,7 @@
 
 **Architecture:** A Cargo workspace under `app/`. `bridge-core` is an async (tokio) library: pure-logic modules (`config`, `normalize`, `cover`, `commands`, `state`) are host-testable with no I/O; I/O modules (`auth`, `ytmd`, `board_server`, `discovery`) are ported from the proven Phase 0 spike (`spike/ytmd-rust/`) and Node source. An orchestrator (`bridge.rs`) wires them and emits a `BridgeEvent` stream over an `mpsc` channel — the single API both the CLI (Part 1) and the Tauri app (Part 2) consume. `bridge-cli` is a thin binary that subscribes and prints.
 
-**Tech Stack:** Rust (GNU toolchain on this box), tokio, `rust_socketio` (async), `reqwest` (async, no-TLS default features — localhost is http), `tokio-tungstenite` (board WS server), `mdns-sd`, `image` (native cover resize — replaces sharp), `serde`/`serde_json`, `anyhow`.
+**Tech Stack:** Rust (GNU toolchain on this box), tokio, `rust_socketio` (async), `reqwest` (async, `native-tls` — ytmd is localhost http but cover-art URLs are remote https), `tokio-tungstenite` (board WS server), `mdns-sd`, `image` (native cover resize — replaces sharp), `serde`/`serde_json`, `anyhow`.
 
 ## Global Constraints
 
@@ -98,7 +98,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] } # native-tls: cover URLs are remote https
 rust_socketio = { version = "0.6", features = ["async"] }
 tokio-tungstenite = "0.21"
 futures-util = "0.3"
