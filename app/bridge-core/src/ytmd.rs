@@ -6,9 +6,10 @@ use crate::commands::YtmdCommand;
 use crate::config::{ytmd_base, ytmd_realtime_base, ytmd_realtime_namespace};
 use anyhow::{Context, Result};
 use futures_util::FutureExt;
-use rust_socketio::asynchronous::{Client, ClientBuilder};
+use rust_socketio::asynchronous::{Client, ClientBuilder, ReconnectSettings};
 use rust_socketio::{Event, Payload, TransportType};
 use serde_json::{json, Value};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Mutex, RwLock};
@@ -50,12 +51,15 @@ where
 pub struct YtmdHandle {
     socket: Client,
     http: reqwest::Client,
-    token: String,
+    token: Arc<RwLock<String>>,
+    on_code: Arc<dyn Fn(&str) + Send + Sync>,
+    reauth_lock: Arc<Mutex<()>>,
 }
 
 pub async fn connect(
     http: reqwest::Client,
-    token: String,
+    token: Arc<RwLock<String>>,
+    on_code: Arc<dyn Fn(&str) + Send + Sync>,
     on_state: UnboundedSender<Value>,
     on_connect: UnboundedSender<()>,
     on_disconnect: UnboundedSender<()>,
@@ -91,9 +95,70 @@ pub async fn connect(
         .boxed()
     };
 
+    // Set by the Error handler when the socket rejects our token; read (and
+    // cleared) by on_reconnect so only auth failures trigger a re-handshake —
+    // ordinary network blips reconnect with the existing token.
+    let auth_failed = Arc::new(AtomicBool::new(false));
+    let reauth_lock = Arc::new(Mutex::new(()));
+
+    let err_flag = auth_failed.clone();
+    let error_cb = move |payload: Payload, _: Client| {
+        let flag = err_flag.clone();
+        async move {
+            let msg = match &payload {
+                Payload::Text(values) => values
+                    .iter()
+                    .map(|v| v.as_str().map(str::to_owned).unwrap_or_else(|| v.to_string()))
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                #[allow(deprecated)]
+                Payload::String(s) => s.clone(),
+                Payload::Binary(_) => String::new(),
+            };
+            tracing::error!("[ytmd] socket error: {msg}");
+            if is_auth_error(&msg) {
+                flag.store(true, Ordering::SeqCst);
+            }
+        }
+        .boxed()
+    };
+
+    // on_reconnect fires before every reconnect attempt. Re-handshake only when
+    // an auth failure was flagged; otherwise return default settings (keeps the
+    // current token). Mirrors JS: swap socket.auth = { token } on auth error.
+    let rc_http = http.clone();
+    let rc_token = token.clone();
+    let rc_lock = reauth_lock.clone();
+    let rc_on_code = on_code.clone();
+    let rc_flag = auth_failed.clone();
+    let reconnect_cb = move || {
+        let http = rc_http.clone();
+        let token = rc_token.clone();
+        let lock = rc_lock.clone();
+        let on_code = rc_on_code.clone();
+        let flag = rc_flag.clone();
+        async move {
+            let mut settings = ReconnectSettings::new();
+            if flag.swap(false, Ordering::SeqCst) {
+                let stale = token.read().await.clone();
+                match reauth(&token, &lock, &stale, || {
+                    crate::auth::request_token(&http, |c| on_code(c))
+                })
+                .await
+                {
+                    Ok(fresh) => settings.auth(json!({ "token": fresh })),
+                    Err(e) => tracing::error!("[ytmd] re-auth failed: {e}"),
+                }
+            }
+            settings
+        }
+        .boxed()
+    };
+
+    let initial_token = token.read().await.clone();
     let socket = ClientBuilder::new(ytmd_realtime_base())
         .namespace(ytmd_realtime_namespace())
-        .auth(json!({ "token": token }))
+        .auth(json!({ "token": initial_token }))
         .transport_type(TransportType::Websocket)
         // Mirror the JS client (bridge/src/ytmd.js): reconnection:true,
         // reconnectionDelay:1000, reconnectionDelayMax:5000. reconnect_on_disconnect
@@ -104,14 +169,13 @@ pub async fn connect(
         .on("state-update", state_cb)
         .on(Event::Connect, connect_cb)
         .on(Event::Close, close_cb)
-        .on(Event::Error, |err, _: Client| {
-            async move { tracing::error!("[ytmd] socket error: {err:?}") }.boxed()
-        })
+        .on(Event::Error, error_cb)
+        .on_reconnect(reconnect_cb)
         .connect()
         .await
         .context("Socket.IO connect failed")?;
 
-    Ok(YtmdHandle { socket, http, token })
+    Ok(YtmdHandle { socket, http, token, on_code, reauth_lock })
 }
 
 impl YtmdHandle {
@@ -119,10 +183,11 @@ impl YtmdHandle {
     /// just (re)connected. Failures are non-fatal.
     pub async fn fetch_state_once(&self) -> Option<Value> {
         let url = format!("{}/state", ytmd_base());
+        let token = self.token.read().await.clone();
         match self
             .http
             .get(&url)
-            .header("Authorization", &self.token) // raw token, no "Bearer"
+            .header("Authorization", &token) // raw token, no "Bearer"
             .send()
             .await
             .and_then(|r| r.error_for_status())
@@ -141,15 +206,39 @@ impl YtmdHandle {
             Some(d) => json!({ "command": c.command, "data": d }),
             None => json!({ "command": c.command }),
         };
-        self.http
-            .post(&url)
-            .header("Authorization", &self.token)
-            .json(&body)
-            .send()
-            .await?
-            .error_for_status()
+
+        let token = self.token.read().await.clone();
+        let res = self.post_command(&url, &body, &token).await?;
+        if res.status() == reqwest::StatusCode::UNAUTHORIZED {
+            // Token died mid-session — re-auth once and retry (ports ytmd.js).
+            let on_code = self.on_code.clone();
+            let fresh = reauth(&self.token, &self.reauth_lock, &token, || {
+                crate::auth::request_token(&self.http, move |c| on_code(c))
+            })
+            .await?;
+            self.post_command(&url, &body, &fresh)
+                .await?
+                .error_for_status()
+                .with_context(|| format!("command {} (after re-auth)", c.command))?;
+            return Ok(());
+        }
+        res.error_for_status()
             .with_context(|| format!("command {}", c.command))?;
         Ok(())
+    }
+
+    async fn post_command(
+        &self,
+        url: &str,
+        body: &Value,
+        token: &str,
+    ) -> reqwest::Result<reqwest::Response> {
+        self.http
+            .post(url)
+            .header("Authorization", token)
+            .json(body)
+            .send()
+            .await
     }
 
     pub async fn disconnect(self) {
