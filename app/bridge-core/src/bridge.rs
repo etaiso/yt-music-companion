@@ -5,7 +5,7 @@ use crate::{auth, board_server, commands, cover, discovery, normalize, state, yt
 use anyhow::Result;
 use serde_json::Value;
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio::time::{sleep, Duration};
 
 #[derive(Debug, Clone)]
@@ -45,17 +45,32 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
     // Auth (surfaces the code via BridgeEvent + moves to NotAuthorized first).
     cur = BridgeState::NotAuthorized;
     set_state(cur);
-    let ev_for_code = events.clone();
-    let token = auth::ensure_token(&http, move |code| {
-        let _ = ev_for_code.send(BridgeEvent::AuthCode { code: code.to_owned() });
-    })
-    .await?;
+    // One code-surfacing closure, reused for the initial handshake and every
+    // later self-heal (socket re-auth / command 401).
+    let on_code: Arc<dyn Fn(&str) + Send + Sync> = {
+        let ev = events.clone();
+        Arc::new(move |code: &str| {
+            let _ = ev.send(BridgeEvent::AuthCode { code: code.to_owned() });
+        })
+    };
+    let token = auth::ensure_token(&http, |c| on_code(c)).await?;
+    let token = Arc::new(RwLock::new(token));
 
     // Wire ytmd realtime.
     let (state_tx, mut state_rx) = mpsc::unbounded_channel::<Value>();
     let (yconn_tx, mut yconn_rx) = mpsc::unbounded_channel::<()>();
     let (ydisc_tx, mut ydisc_rx) = mpsc::unbounded_channel::<()>();
-    let ytmd = Arc::new(ytmd::connect(http.clone(), token.clone(), state_tx, yconn_tx, ydisc_tx).await?);
+    let ytmd = Arc::new(
+        ytmd::connect(
+            http.clone(),
+            token.clone(),
+            on_code.clone(),
+            state_tx,
+            yconn_tx,
+            ydisc_tx,
+        )
+        .await?,
+    );
 
     cur = BridgeState::WaitingForBoard;
     set_state(cur);
