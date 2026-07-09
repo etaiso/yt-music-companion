@@ -267,4 +267,27 @@ mod event_serde_tests {
         assert_eq!(j["type"], "auth-code");
         assert_eq!(j["code"], "1234");
     }
+
+    #[test]
+    fn now_playing_event_nests_vm_under_data() {
+        let state = serde_json::json!({
+            "video": { "title": "Creep", "author": "Radiohead" },
+            "player": { "trackState": 1 }
+        });
+        let vm = crate::normalize::normalize(&state, true).unwrap();
+        let j = serde_json::to_value(BridgeEvent::NowPlaying(vm)).unwrap();
+        assert_eq!(j["type"], "now-playing");
+        // vm nests under "data" as an object (not flattened) with its snake_case keys.
+        assert!(j["data"].is_object());
+        assert_eq!(j["data"]["title"], "Creep");
+        assert_eq!(j["data"]["artist"], "Radiohead");
+        assert_eq!(j["data"]["playback"], "playing");
+    }
+
+    #[test]
+    fn log_event_serializes_tagged() {
+        let j = serde_json::to_value(BridgeEvent::Log("hello".into())).unwrap();
+        assert_eq!(j["type"], "log");
+        assert_eq!(j["data"], "hello");
+    }
 }
