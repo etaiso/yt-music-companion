@@ -24,6 +24,34 @@ fn show_main_window(app: &tauri::AppHandle) {
     }
 }
 
+/// Tray tooltip + state-tinted icon for each `BridgeState` (Task 6).
+///
+/// Icons are small (32x32) badge variants baked in at compile time via
+/// `tauri::include_image!`, so no filesystem access is needed at runtime.
+fn tray_status_for_state(state: &BridgeState) -> (&'static str, tauri::image::Image<'static>) {
+    use BridgeState::*;
+
+    let icon_neutral = tauri::include_image!("icons/tray-neutral.png");
+    let icon_connected = tauri::include_image!("icons/tray-connected.png");
+    let icon_warning = tauri::include_image!("icons/tray-warning.png");
+    let icon_action = tauri::include_image!("icons/tray-action.png");
+
+    match state {
+        Starting => ("YT Music board — starting…", icon_neutral),
+        YtmdNotFound => (
+            "YT Music board — YouTube Music Desktop not running",
+            icon_warning,
+        ),
+        NotAuthorized => ("YT Music board — authorization needed", icon_action),
+        WaitingForBoard => ("YT Music board — waiting for board", icon_neutral),
+        BoardConnected => ("YT Music board — connected", icon_connected),
+        YtmdDisconnected => (
+            "YT Music board — YouTube Music Desktop disconnected",
+            icon_warning,
+        ),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -35,6 +63,10 @@ pub fn run() {
         ))
         .manage(LatestBridgeState(Mutex::new(None)))
         .setup(|app| {
+            // Tray-only app: don't show a Dock icon on macOS.
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
             let handle = app.handle().clone();
             let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<BridgeEvent>();
             tauri::async_runtime::spawn(async move {
@@ -43,22 +75,11 @@ pub fn run() {
                 }
             });
 
-            let handle2 = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                while let Some(ev) = rx.recv().await {
-                    if let BridgeEvent::State(s) = &ev {
-                        let latest = handle2.state::<LatestBridgeState>();
-                        *latest.0.lock().unwrap() = Some(*s);
-                    }
-                    let _ = handle2.emit("bridge-event", &ev);
-                }
-            });
-
             let open_item = MenuItem::with_id(app, "open", "Open", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open_item, &quit_item])?;
 
-            TrayIconBuilder::new()
+            let tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("YT Music board bridge")
                 .menu(&menu)
@@ -79,6 +100,21 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
+
+            let handle2 = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                while let Some(ev) = rx.recv().await {
+                    if let BridgeEvent::State(s) = &ev {
+                        let latest = handle2.state::<LatestBridgeState>();
+                        *latest.0.lock().unwrap() = Some(*s);
+
+                        let (tooltip, icon) = tray_status_for_state(s);
+                        let _ = tray.set_tooltip(Some(tooltip));
+                        let _ = tray.set_icon(Some(icon));
+                    }
+                    let _ = handle2.emit("bridge-event", &ev);
+                }
+            });
 
             Ok(())
         })
