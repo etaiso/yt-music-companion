@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "tauri-hello",
+  "version": "0.1.0",
+  "identifier": "app.ytmboard.spike",
+  "build": { "frontendDist": "dist" },
+  "app": {
+    "windows": [{ "title": "Tauri hello", "width": 420, "height": 300 }],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": false }
+}
