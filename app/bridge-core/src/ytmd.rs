@@ -9,13 +9,42 @@ use futures_util::FutureExt;
 use rust_socketio::asynchronous::{Client, ClientBuilder};
 use rust_socketio::{Event, Payload, TransportType};
 use serde_json::{json, Value};
+use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::{Mutex, RwLock};
 
 /// True when a socket/command error message indicates the token was rejected
 /// (revoked/expired/overwritten). Ports the JS `/auth|token|unauthor/i` test.
 fn is_auth_error(msg: &str) -> bool {
     let m = msg.to_ascii_lowercase();
     ["auth", "token", "unauthor"].iter().any(|kw| m.contains(kw))
+}
+
+/// Serialized, coalescing token refresh shared by the socket-reconnect and
+/// command-401 paths. If another caller refreshed the cell while we waited on
+/// `lock`, we adopt their token instead of running a second handshake (so the
+/// user only ever sees one auth code). `handshake` performs the real request
+/// (surfacing the code + persisting the token) and is injected for testability.
+async fn reauth<F, Fut>(
+    token: &Arc<RwLock<String>>,
+    lock: &Arc<Mutex<()>>,
+    stale: &str,
+    handshake: F,
+) -> Result<String>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<String>>,
+{
+    let _guard = lock.lock().await;
+    {
+        let current = token.read().await;
+        if *current != stale {
+            return Ok(current.clone());
+        }
+    }
+    let fresh = handshake().await?;
+    *token.write().await = fresh.clone();
+    Ok(fresh)
 }
 
 pub struct YtmdHandle {
@@ -130,7 +159,8 @@ impl YtmdHandle {
 
 #[cfg(test)]
 mod tests {
-    use super::is_auth_error;
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
     #[test]
     fn is_auth_error_matches_auth_keywords() {
@@ -147,5 +177,43 @@ mod tests {
         assert!(!is_auth_error("timeout"));
         assert!(!is_auth_error("connection refused"));
         assert!(!is_auth_error(""));
+    }
+
+    #[tokio::test]
+    async fn reauth_runs_handshake_and_updates_cell() {
+        let token = Arc::new(RwLock::new("old".to_string()));
+        let lock = Arc::new(Mutex::new(()));
+        let calls = Arc::new(AtomicUsize::new(0));
+
+        let calls_c = calls.clone();
+        let fresh = reauth(&token, &lock, "old", || async move {
+            calls_c.fetch_add(1, AtomicOrdering::SeqCst);
+            Ok("new".to_string())
+        })
+        .await
+        .unwrap();
+
+        assert_eq!(fresh, "new");
+        assert_eq!(*token.read().await, "new");
+        assert_eq!(calls.load(AtomicOrdering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn reauth_coalesces_when_cell_already_refreshed() {
+        // Cell already holds a token newer than the caller's stale value.
+        let token = Arc::new(RwLock::new("new".to_string()));
+        let lock = Arc::new(Mutex::new(()));
+        let calls = Arc::new(AtomicUsize::new(0));
+
+        let calls_c = calls.clone();
+        let got = reauth(&token, &lock, "old", || async move {
+            calls_c.fetch_add(1, AtomicOrdering::SeqCst);
+            Ok("should-not-be-used".to_string())
+        })
+        .await
+        .unwrap();
+
+        assert_eq!(got, "new"); // returned the already-refreshed token
+        assert_eq!(calls.load(AtomicOrdering::SeqCst), 0); // handshake skipped
     }
 }
