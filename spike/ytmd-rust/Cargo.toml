@@ -1,0 +1,25 @@
+[package]
+name = "ytmd-rust-spike"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# THROWAWAY Phase 0 de-risking spike (see
+# docs/superpowers/specs/2026-07-08-standalone-bridge-app-design.md).
+# Goal: prove the ytmdesktop Companion protocol can be driven from Rust well
+# enough to justify Branch T (Tauri + native Rust bridge). Not shipped as-is.
+
+[dependencies]
+# HTTP auth handshake. localhost is plain http:// only, so we drop the TLS
+# backend entirely — smaller build, no OpenSSL/schannel dependency to fight.
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json"] }
+
+# Socket.IO realtime channel. ytmdesktop's socket.io-client ^4 speaks
+# Socket.IO v5 / Engine.IO v4, which this crate targets.
+rust_socketio = "0.6"
+
+# mDNS advertise + browse (criterion 3).
+mdns-sd = "0.13"
+
+serde_json = "1"
+anyhow = "1"

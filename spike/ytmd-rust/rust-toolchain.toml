@@ -1,0 +1,6 @@
+# Pin the GNU toolchain for this spike. The default MSVC toolchain fails to link
+# on this machine: an MSYS2 GNU `link.exe` shadows MSVC's linker on PATH, and no
+# Visual Studio C++ Build Tools are installed. The GNU toolchain links with
+# MinGW gcc instead (C:\msys64\mingw64\bin must be on PATH — see README).
+[toolchain]
+channel = "stable-x86_64-pc-windows-gnu"
