@@ -47,3 +47,41 @@ jobs:
           || gh release upload "$TAG" ytm-firmware.bin \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
+
+  app:
+    name: Build bridge app (${{ matrix.os }})
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest # arm64
+            args: "--target aarch64-apple-darwin"
+          - os: macos-latest # x64
+            args: "--target x86_64-apple-darwin"
+          - os: windows-latest
+            args: ""
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Add macOS target
+        if: matrix.os == 'macos-latest'
+        run: rustup target add ${{ contains(matrix.args, 'aarch64') && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
+
+      # tauri-action uploads to the release for this tag; the firmware `release`
+      # job above (needs: release) creates it first, so this only attaches
+      # the platform installer as an additional asset. No code signing: builds
+      # are unsigned per the design's non-goals.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: app/src-tauri
+          tagName: ${{ github.event.inputs.tag || github.ref_name }}
+          releaseName: ${{ github.event.inputs.tag || github.ref_name }}
+          args: ${{ matrix.args }}
