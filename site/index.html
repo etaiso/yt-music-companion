@@ -149,9 +149,9 @@
         <div style="width:46px;height:46px;border-radius:13px;background:rgba(192,132,252,.14);border:1px solid rgba(192,132,252,.3);display:flex;align-items:center;justify-content:center;margin-bottom:18px;">
           <span class="ms" style="font-size:26px;color:#c084fc;">swap_horiz</span>
         </div>
-        <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.42);margin-bottom:6px;">Node.js</div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.42);margin-bottom:6px;">Native app</div>
         <div style="font-size:20px;font-weight:800;letter-spacing:-.3px;margin-bottom:8px;">The bridge</div>
-        <p style="margin:0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.58);">Normalizes state into a source-agnostic view-model and pushes pre-resized cover art.</p>
+        <p style="margin:0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.58);">A small downloadable tray app that normalizes state into a source-agnostic view-model and pushes pre-resized cover art.</p>
       </div>
 
       <div class="lp-arrow" style="display:flex;align-items:center;padding:0 10px;color:rgba(255,255,255,.32);">
@@ -259,8 +259,8 @@
       </div>
       <div>
         <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#c084fc;margin-bottom:12px;">Bridge</div>
-        <div style="font-size:16px;font-weight:700;line-height:1.35;">Node.js, cross-platform</div>
-        <div style="font-size:13.5px;color:rgba(255,255,255,.5);margin-top:6px;">Runs on macOS or Windows</div>
+        <div style="font-size:16px;font-weight:700;line-height:1.35;">Native app (Rust), Windows + macOS</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.5);margin-top:6px;">Tauri-packaged tray app — download, no toolchain</div>
       </div>
       <div>
         <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#c084fc;margin-bottom:12px;">Backend</div>
@@ -273,49 +273,83 @@
   <!-- GET STARTED -->
   <section id="start" class="lp-section" style="position:relative;z-index:2;max-width:1200px;margin:0 auto;padding:70px 40px 40px;">
     <div style="text-align:center;margin-bottom:14px;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#c084fc;">Get started</div>
-    <h2 style="text-align:center;margin:0 0 12px;font-size:clamp(28px,5vw,38px);font-weight:900;letter-spacing:-1px;">Two ways to run it</h2>
-    <p style="text-align:center;margin:0 auto 32px;max-width:520px;font-size:17px;line-height:1.5;color:rgba(255,255,255,.6);">Try the whole UI in a desktop simulator with no hardware, or flash the real board and feed it live music.</p>
+    <h2 style="text-align:center;margin:0 0 12px;font-size:clamp(28px,5vw,38px);font-weight:900;letter-spacing:-1px;">Two steps, no toolchain</h2>
+    <p style="text-align:center;margin:0 auto 32px;max-width:520px;font-size:17px;line-height:1.5;color:rgba(255,255,255,.6);">Flash the board from your browser, then install the small bridge app on your PC. No compiler, no CLI, nothing to build.</p>
 
     <div style="max-width:720px;margin:0 auto 40px;display:flex;align-items:flex-start;gap:12px;padding:16px 20px;border:1px solid rgba(244,114,182,.28);border-radius:16px;background:rgba(244,114,182,.06);">
       <span class="ms" style="font-size:22px;color:#f472b6;flex:none;font-variation-settings:'FILL' 1;">priority_high</span>
-      <div style="font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.72);"><strong style="color:#fff;font-weight:700;">Prerequisite for live music:</strong> the <a href="https://ytmdesktop.app" target="_blank" rel="noopener" style="color:#f9a8d4;font-weight:600;text-decoration:none;">ytmdesktop</a> app must be running on your host PC with its <strong style="color:#fff;font-weight:600;">Companion Server + authorization</strong> enabled (Settings → Integration). The board is a remote for it, not a standalone player. (The simulator needs no hardware, but still just previews the UI.)</div>
+      <div style="font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.72);"><strong style="color:#fff;font-weight:700;">Prerequisite for live music:</strong> the <a href="https://ytmdesktop.app" target="_blank" rel="noopener" style="color:#f9a8d4;font-weight:600;text-decoration:none;">ytmdesktop</a> app must be running on your host PC with its <strong style="color:#fff;font-weight:600;">Companion Server + authorization</strong> enabled (Settings → Integration). The board is a remote for it, not a standalone player.</div>
     </div>
 
     <div class="lp-start-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
       <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:32px;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-          <span class="ms" style="font-size:24px;color:#a5b4fc;">terminal</span>
-          <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.5);">Option A · no hardware</div>
+          <span class="ms" style="font-size:24px;color:#a5b4fc;font-variation-settings:'FILL' 1;">looks_one</span>
+          <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.5);">Step 1</div>
         </div>
-        <div style="font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:10px;">Desktop simulator</div>
-        <p style="margin:0 0 22px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">Runs the exact same <code style="font-family:ui-monospace,monospace;font-size:13px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:5px;">ui/</code> code in an SDL window, cycling through all six player states.</p>
-        <div style="position:relative;background:#050506;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px 18px;">
-          <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.7;color:rgba(255,255,255,.82);white-space:pre-wrap;word-break:break-all;"><span style="color:#6b7280;">$ </span>brew install cmake sdl2
-<span style="color:#6b7280;">$ </span>cd sim &amp;&amp; cmake -B build
-<span style="color:#6b7280;">$ </span>cmake --build build &amp;&amp; ./build/ytm_sim</div>
-          <button id="lp-copy-sim" type="button" aria-label="Copy simulator commands" style="position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);">
-            <span class="ms" style="font-size:18px;">content_copy</span>
-          </button>
-        </div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:10px;">Flash your board</div>
+        <p style="margin:0 0 22px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">Runs entirely in Chrome or Edge over USB — no drivers, no SDK. Pick a Wi‑Fi network in the wizard and it's on your network in under a minute.</p>
+        <a href="install/" style="display:inline-flex;align-items:center;gap:9px;font-size:15px;font-weight:700;color:#0a0a0b;background:#fff;padding:14px 22px;border-radius:12px;text-decoration:none;">
+          <span class="ms" style="font-size:20px;font-variation-settings:'FILL' 1;">bolt</span>Open the web installer
+        </a>
       </div>
 
       <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:32px;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-          <span class="ms" style="font-size:24px;color:#f472b6;">developer_board</span>
-          <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.5);">Option B · on the board</div>
+          <span class="ms" style="font-size:24px;color:#f472b6;font-variation-settings:'FILL' 1;">looks_two</span>
+          <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.5);">Step 2</div>
         </div>
-        <div style="font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:10px;">Flash &amp; go live</div>
-        <p style="margin:0 0 22px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">Set your Wi‑Fi in <code style="font-family:ui-monospace,monospace;font-size:13px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:5px;">menuconfig</code>, flash the firmware, then run the bridge on your PC.</p>
-        <div style="position:relative;background:#050506;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px 18px;">
-          <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.7;color:rgba(255,255,255,.82);white-space:pre-wrap;word-break:break-all;"><span style="color:#6b7280;">$ </span>cd firmware &amp;&amp; idf.py set-target esp32s3
-<span style="color:#6b7280;">$ </span>idf.py menuconfig  <span style="color:#6b7280;"># set Wi-Fi</span>
-<span style="color:#6b7280;">$ </span>idf.py -p &lt;port&gt; flash monitor</div>
-          <button id="lp-copy-board" type="button" aria-label="Copy board commands" style="position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);">
-            <span class="ms" style="font-size:18px;">content_copy</span>
-          </button>
-        </div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:10px;">Get the bridge</div>
+        <p style="margin:0 0 20px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">A small tray app for your PC — it finds ytmdesktop, waits for your board, and relays playback. Nothing to build.</p>
+        <a id="lp-download-btn" href="https://github.com/etaiso/yt-music-companion/releases/latest" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;font-size:15px;font-weight:700;color:#0a0a0b;background:#fff;padding:14px 22px;border-radius:12px;text-decoration:none;">
+          <span class="ms" style="font-size:20px;font-variation-settings:'FILL' 1;">download</span><span id="lp-download-label">Download the bridge</span>
+        </a>
+        <div style="margin-top:14px;font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.45);">Unsigned build — Windows: SmartScreen → <strong style="color:rgba(255,255,255,.65);">More info → Run anyway</strong>. macOS: Gatekeeper → right‑click the app → <strong style="color:rgba(255,255,255,.65);">Open</strong>.</div>
       </div>
     </div>
+
+    <details style="max-width:1200px;margin:32px auto 0;">
+      <summary style="cursor:pointer;display:flex;align-items:center;gap:8px;width:fit-content;font-size:14px;font-weight:700;color:rgba(255,255,255,.62);padding:10px 4px;">
+        <span class="ms" style="font-size:18px;">code_blocks</span>Build from source (developers)
+      </summary>
+      <p style="margin:14px 0 22px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">Try the whole UI in a desktop simulator with no hardware, or flash firmware manually and run the bridge from source.</p>
+
+      <div class="lp-start-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:32px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <span class="ms" style="font-size:24px;color:#a5b4fc;">terminal</span>
+            <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.5);">Option A · no hardware</div>
+          </div>
+          <div style="font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:10px;">Desktop simulator</div>
+          <p style="margin:0 0 22px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">Runs the exact same <code style="font-family:ui-monospace,monospace;font-size:13px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:5px;">ui/</code> code in an SDL window, cycling through all six player states.</p>
+          <div style="position:relative;background:#050506;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px 18px;">
+            <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.7;color:rgba(255,255,255,.82);white-space:pre-wrap;word-break:break-all;"><span style="color:#6b7280;">$ </span>brew install cmake sdl2
+<span style="color:#6b7280;">$ </span>cd sim &amp;&amp; cmake -B build
+<span style="color:#6b7280;">$ </span>cmake --build build &amp;&amp; ./build/ytm_sim</div>
+            <button id="lp-copy-sim" type="button" aria-label="Copy simulator commands" style="position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);">
+              <span class="ms" style="font-size:18px;">content_copy</span>
+            </button>
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:32px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <span class="ms" style="font-size:24px;color:#f472b6;">developer_board</span>
+            <div style="font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:rgba(255,255,255,.5);">Option B · on the board</div>
+          </div>
+          <div style="font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:10px;">Flash &amp; go live</div>
+          <p style="margin:0 0 22px;font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.6);">Set your Wi‑Fi in <code style="font-family:ui-monospace,monospace;font-size:13px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:5px;">menuconfig</code>, flash the firmware, then run the bridge on your PC.</p>
+          <div style="position:relative;background:#050506;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px 18px;">
+            <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.7;color:rgba(255,255,255,.82);white-space:pre-wrap;word-break:break-all;"><span style="color:#6b7280;">$ </span>cd firmware &amp;&amp; idf.py set-target esp32s3
+<span style="color:#6b7280;">$ </span>idf.py menuconfig  <span style="color:#6b7280;"># set Wi-Fi</span>
+<span style="color:#6b7280;">$ </span>idf.py -p &lt;port&gt; flash monitor</div>
+            <button id="lp-copy-board" type="button" aria-label="Copy board commands" style="position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);">
+              <span class="ms" style="font-size:18px;">content_copy</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </details>
 
     <div style="margin-top:48px;position:relative;overflow:hidden;border-radius:26px;border:1px solid rgba(255,255,255,.1);background:linear-gradient(120deg,rgba(109,40,217,.28),rgba(236,72,153,.2));padding:52px 44px;text-align:center;">
       <div style="position:absolute;inset:0;background:radial-gradient(60% 100% at 50% 0%, rgba(244,114,182,.28), rgba(244,114,182,0) 70%);pointer-events:none;"></div>
@@ -473,6 +507,68 @@
     }
   }
 
+  // ---- OS-detected download button (Step 2, "Get the bridge") ----
+  // The button already has a working fallback in the markup (the GitHub
+  // Releases page, opened in a new tab), so any failure below — no match,
+  // network error, fetch unsupported, JS disabled entirely — just leaves
+  // that fallback in place.
+  function detectPlatform() {
+    var ua = navigator.userAgent || '', plat = navigator.platform || '';
+    if (/Win/i.test(plat) || /Windows/i.test(ua)) return 'windows';
+    if (/Mac/i.test(plat) || /Macintosh|Mac OS X/i.test(ua)) return 'mac';
+    return null;
+  }
+
+  // Best-effort Apple Silicon vs Intel guess (navigator.platform reports
+  // "MacIntel" on both). Only used to pick between two macOS .dmg assets;
+  // if it's wrong the .dmg still runs, just under Rosetta.
+  function detectAppleSilicon() {
+    try {
+      var canvas = document.createElement('canvas');
+      var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      var ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
+      var renderer = ext && gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+      return !!(renderer && /Apple M/i.test(renderer));
+    } catch (e) { return false; }
+  }
+
+  function pickAsset(assets, platform, preferAppleSilicon) {
+    var re = platform === 'windows' ? /\.exe$/i : /\.dmg$/i;
+    var matches = assets.filter(function (a) { return re.test(a.name || ''); });
+    if (!matches.length) return null;
+    if (platform === 'mac' && matches.length > 1) {
+      var archRe = preferAppleSilicon ? /aarch64|arm64/i : /x64|x86_64/i;
+      var archMatch = matches.filter(function (a) { return archRe.test(a.name); });
+      if (archMatch.length) return archMatch[0];
+    }
+    return matches[0];
+  }
+
+  function initDownloadButton() {
+    var btn = document.getElementById('lp-download-btn');
+    var label = document.getElementById('lp-download-label');
+    if (!btn) return;
+
+    var platform = detectPlatform();
+    if (platform === 'windows' && label) label.textContent = 'Download for Windows (.exe)';
+    else if (platform === 'mac' && label) label.textContent = 'Download for macOS (.dmg)';
+    if (!platform || typeof fetch !== 'function') return;
+
+    fetch('https://api.github.com/repos/etaiso/yt-music-companion/releases/latest')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data || !Array.isArray(data.assets)) return;
+        var asset = pickAsset(data.assets, platform, platform === 'mac' && detectAppleSilicon());
+        if (asset && asset.browser_download_url) {
+          btn.href = asset.browser_download_url;
+          // Direct asset download rather than a page — no need to force a new tab.
+          btn.removeAttribute('target');
+          btn.removeAttribute('rel');
+        }
+      })
+      .catch(function () { /* keep the Releases-page fallback href */ });
+  }
+
   function wireCopy(btnId, text) {
     var btn = document.getElementById(btnId);
     if (!btn) return;
@@ -505,6 +601,7 @@
 
     wireCopy('lp-copy-sim', 'brew install cmake sdl2\ncd sim && cmake -B build\ncmake --build build && ./build/ytm_sim');
     wireCopy('lp-copy-board', 'cd firmware && idf.py set-target esp32s3\nidf.py menuconfig\nidf.py -p <port> flash monitor');
+    initDownloadButton();
   }
 
   if (document.readyState === 'loading') {
