@@ -12,6 +12,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager, WindowEvent,
 };
+use tauri_plugin_notification::NotificationExt;
 
 /// Latest bridge state, kept in Tauri managed state for the tray (Task 6).
 pub struct LatestBridgeState(pub Mutex<Option<BridgeState>>);
@@ -111,6 +112,16 @@ pub fn run() {
                         let (tooltip, icon) = tray_status_for_state(s);
                         let _ = tray.set_tooltip(Some(tooltip));
                         let _ = tray.set_icon(Some(icon));
+                    }
+                    if let BridgeEvent::AuthCode { code } = &ev {
+                        // Seen with the window closed/hidden — the tray has no
+                        // room for the code itself, so nudge via OS notification.
+                        let _ = handle2
+                            .notification()
+                            .builder()
+                            .title("YT Music board — action needed")
+                            .body(format!("Enter code {code} — click Allow in ytmdesktop"))
+                            .show();
                     }
                     let _ = handle2.emit("bridge-event", &ev);
                 }

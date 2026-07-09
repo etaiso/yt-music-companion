@@ -205,6 +205,7 @@
   function showAuthCode(code) {
     // A repeat auth-code (e.g. the re-auth follow-up re-emitting one) is just
     // a refresh: rebuilding from scratch naturally shows the new code.
+    const codeText = typeof code === "string" && code.length > 0 ? code : "……";
     const card = el("section", { class: "card auth" }, [
       el("div", { class: "glyph", "aria-hidden": "true", text: "\u{1F511}" }),
       el("h1", { text: "Authorize the board bridge" }),
@@ -212,7 +213,11 @@
         class: "body",
         text: "Enter this code in YouTube Music Desktop → Settings → Integration → Companion Server.",
       }),
-      el("div", { class: "auth-code", text: code }),
+      el("div", { class: "auth-code", text: codeText }),
+      el("p", {
+        class: "auth-urgency",
+        text: "Click Allow in ytmdesktop within ~30s — the code expires quickly.",
+      }),
       el("div", { class: "actions" }, [
         el("button", {
           class: "btn",
