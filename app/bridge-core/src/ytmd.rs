@@ -11,6 +11,13 @@ use rust_socketio::{Event, Payload, TransportType};
 use serde_json::{json, Value};
 use tokio::sync::mpsc::UnboundedSender;
 
+/// True when a socket/command error message indicates the token was rejected
+/// (revoked/expired/overwritten). Ports the JS `/auth|token|unauthor/i` test.
+fn is_auth_error(msg: &str) -> bool {
+    let m = msg.to_ascii_lowercase();
+    ["auth", "token", "unauthor"].iter().any(|kw| m.contains(kw))
+}
+
 pub struct YtmdHandle {
     socket: Client,
     http: reqwest::Client,
@@ -118,5 +125,27 @@ impl YtmdHandle {
 
     pub async fn disconnect(self) {
         let _ = self.socket.disconnect().await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_auth_error;
+
+    #[test]
+    fn is_auth_error_matches_auth_keywords() {
+        assert!(is_auth_error("auth failed"));
+        assert!(is_auth_error("invalid token"));
+        assert!(is_auth_error("Unauthorized"));
+        assert!(is_auth_error("UNAUTHORISED")); // case-insensitive
+        assert!(is_auth_error("Received an ConnectError frame: token rejected"));
+    }
+
+    #[test]
+    fn is_auth_error_ignores_transient_errors() {
+        assert!(!is_auth_error("transport close"));
+        assert!(!is_auth_error("timeout"));
+        assert!(!is_auth_error("connection refused"));
+        assert!(!is_auth_error(""));
     }
 }
