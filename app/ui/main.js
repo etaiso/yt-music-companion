@@ -123,17 +123,52 @@
     }
   }
 
-  // TODO(Task 8): wire to invoke("get_autostart") / invoke("set_autostart", …).
-  // The toggle is a disabled stub until that command exists.
-  function autostartToggleStub() {
-    return el("input", {
+  // Launch-at-login toggle backed by the app's `get_autostart`/`set_autostart`
+  // commands (Task 8). Starts disabled while the initial state loads, so the
+  // user can't fire a change event before we know the real value.
+  function autostartToggle() {
+    const input = el("input", {
       type: "checkbox",
       id: "autostart-toggle",
       class: "toggle",
       disabled: "disabled",
-      "aria-disabled": "true",
-      title: "Coming soon",
+      onchange: (event) => {
+        const enabled = event.target.checked;
+        const core = window.__TAURI__ && window.__TAURI__.core;
+        if (!core || typeof core.invoke !== "function") {
+          console.warn("__TAURI__.core.invoke unavailable; cannot set autostart");
+          return;
+        }
+        input.disabled = true;
+        core
+          .invoke("set_autostart", { enabled })
+          .catch((err) => {
+            console.error("set_autostart failed", err);
+            // Roll back so the checkbox reflects reality, not the failed intent.
+            input.checked = !enabled;
+          })
+          .finally(() => {
+            input.disabled = false;
+          });
+      },
     });
+
+    const core = window.__TAURI__ && window.__TAURI__.core;
+    if (core && typeof core.invoke === "function") {
+      core
+        .invoke("get_autostart")
+        .then((isEnabled) => {
+          input.checked = Boolean(isEnabled);
+        })
+        .catch((err) => console.error("get_autostart failed", err))
+        .finally(() => {
+          input.disabled = false;
+        });
+    } else {
+      console.warn("__TAURI__.core.invoke unavailable; cannot read autostart state");
+    }
+
+    return input;
   }
 
   function connectedView() {
@@ -150,7 +185,7 @@
     card.appendChild(
       el("div", { class: "settings-row" }, [
         el("label", { class: "toggle-label", for: "autostart-toggle", text: "Launch at login" }),
-        autostartToggleStub(),
+        autostartToggle(),
       ]),
     );
 

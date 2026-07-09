@@ -12,6 +12,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager, WindowEvent,
 };
+use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_notification::NotificationExt;
 
 /// Latest bridge state, kept in Tauri managed state for the tray (Task 6).
@@ -53,6 +54,19 @@ fn tray_status_for_state(state: &BridgeState) -> (&'static str, tauri::image::Im
     }
 }
 
+/// Whether the app is currently registered as a login item (Task 8).
+#[tauri::command]
+fn get_autostart(app: tauri::AppHandle) -> bool {
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+/// Register/unregister the app as a login item (Task 8).
+#[tauri::command]
+fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let m = app.autolaunch();
+    (if enabled { m.enable() } else { m.disable() }).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -62,6 +76,7 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .invoke_handler(tauri::generate_handler![get_autostart, set_autostart])
         .manage(LatestBridgeState(Mutex::new(None)))
         .setup(|app| {
             // Tray-only app: don't show a Dock icon on macOS.
