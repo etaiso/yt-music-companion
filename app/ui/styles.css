@@ -1,0 +1,53 @@
+:root {
+  color-scheme: dark;
+  --bg: #14121f;
+  --fg: #f4f2fb;
+  --muted: #a9a4c7;
+  --accent-a: #6366f1;
+  --accent-b: #ec4899;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: radial-gradient(circle at 30% 20%, #211d38 0%, var(--bg) 70%);
+  color: var(--fg);
+  display: grid;
+  place-items: center;
+}
+
+.shell {
+  text-align: center;
+  padding: 2rem;
+}
+
+.glyph {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 0.75rem;
+}
+
+h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
