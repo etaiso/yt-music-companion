@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 pub const APP_ID: &str = "ytmboard";
 pub const APP_NAME: &str = "YT Music board";
-pub const APP_VERSION: &str = "1.0.2";
+pub const APP_VERSION: &str = "1.0.3";
 pub const COVER_PX: u32 = 172;
 
 pub fn ytmd_host() -> String {
