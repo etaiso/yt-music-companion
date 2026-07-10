@@ -83,9 +83,6 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
     // mDNS advertisement (kept alive for the process lifetime).
     let _discovery = discovery::start()?;
 
-    // Auth (surfaces the code via BridgeEvent + moves to NotAuthorized first).
-    cur = BridgeState::NotAuthorized;
-    set_state(cur);
     // One code-surfacing closure, reused for the initial handshake and every
     // later self-heal (socket re-auth / command 401).
     let on_code: Arc<dyn Fn(&str) + Send + Sync> = {
@@ -94,15 +91,39 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
             let _ = ev.send(BridgeEvent::AuthCode { code: code.to_owned() });
         })
     };
-    let token = auth::ensure_token(&http, |c| on_code(c)).await?;
-    let token = Arc::new(RwLock::new(token));
 
-    // Wire ytmd realtime.
-    let (state_tx, mut state_rx) = mpsc::unbounded_channel::<Value>();
-    let (yconn_tx, mut yconn_rx) = mpsc::unbounded_channel::<()>();
-    let (ydisc_tx, mut ydisc_rx) = mpsc::unbounded_channel::<()>();
-    let ytmd = Arc::new(
-        ytmd::connect(
+    // Acquire an authorized, connected ytmd session. RETRY (rather than exit)
+    // while ytmdesktop is unreachable, so a host that isn't running yet shows
+    // YtmdNotFound and self-heals when it comes up — instead of the whole
+    // bridge returning Err and the window freezing on its last state. `token`
+    // is shared with the socket's re-auth path, so it must outlive the loop.
+    let token = Arc::new(RwLock::new(String::new()));
+    let (mut state_rx, mut yconn_rx, mut ydisc_rx, ytmd) = loop {
+        // Probe first so we can distinguish "host down" (retry quietly) from
+        // "up but not yet authorized" (surface a pairing code).
+        if !ytmd::is_reachable(&http).await {
+            cur = state::next_state(cur, Signal::YtmdProbeFailed);
+            set_state(cur);
+            sleep(Duration::from_secs(3)).await;
+            continue;
+        }
+
+        cur = state::next_state(cur, Signal::ServerUpNoToken);
+        set_state(cur);
+        let fresh = match auth::ensure_token(&http, |c| on_code(c)).await {
+            Ok(t) => t,
+            Err(e) => {
+                emit(BridgeEvent::Log(format!("[auth] handshake failed: {e:#}")));
+                sleep(Duration::from_secs(3)).await;
+                continue;
+            }
+        };
+        *token.write().await = fresh;
+
+        let (state_tx, state_rx) = mpsc::unbounded_channel::<Value>();
+        let (yconn_tx, yconn_rx) = mpsc::unbounded_channel::<()>();
+        let (ydisc_tx, ydisc_rx) = mpsc::unbounded_channel::<()>();
+        match ytmd::connect(
             http.clone(),
             token.clone(),
             on_code.clone(),
@@ -110,8 +131,16 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
             yconn_tx,
             ydisc_tx,
         )
-        .await?,
-    );
+        .await
+        {
+            Ok(y) => break (state_rx, yconn_rx, ydisc_rx, Arc::new(y)),
+            Err(e) => {
+                emit(BridgeEvent::Log(format!("[ytmd] connect failed: {e:#}")));
+                sleep(Duration::from_secs(3)).await;
+                continue;
+            }
+        }
+    };
 
     cur = BridgeState::WaitingForBoard;
     set_state(cur);

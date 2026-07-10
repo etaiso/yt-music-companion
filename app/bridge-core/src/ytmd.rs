@@ -14,6 +14,17 @@ use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Mutex, RwLock};
 
+/// True when the Companion Server answers at all — any HTTP status (incl. the
+/// 401 you get with no token) proves ytmdesktop is up. Only a connection or
+/// timeout error means it isn't running, which the orchestrator maps to
+/// YtmdNotFound rather than a hard exit.
+pub async fn is_reachable(http: &reqwest::Client) -> bool {
+    match http.get(format!("{}/state", ytmd_base())).send().await {
+        Ok(_) => true,
+        Err(e) => !(e.is_connect() || e.is_timeout()),
+    }
+}
+
 /// True when a socket/command error message indicates the token was rejected
 /// (revoked/expired/overwritten). Ports the JS `/auth|token|unauthor/i` test.
 fn is_auth_error(msg: &str) -> bool {

@@ -271,6 +271,22 @@
     if (mount) renderNowPlaying(mount, data);
   }
 
+  // The bridge hit an unrecoverable error (emitted on its own "bridge-fatal"
+  // channel, separate from the bridge-event stream). Show it rather than
+  // leaving the window frozen on whatever card was last drawn.
+  function showFatal(message) {
+    app.replaceChildren(
+      view({
+        icon: "❌",
+        title: "The bridge stopped",
+        body:
+          typeof message === "string" && message
+            ? message
+            : "An unexpected error stopped the bridge. Try restarting the app.",
+      }),
+    );
+  }
+
   function handleBridgeEvent(payload) {
     if (!payload || typeof payload !== "object") return;
     switch (payload.type) {
@@ -291,15 +307,46 @@
     }
   }
 
+  // The backend emits its state transitions once, near startup, into a window
+  // that stays hidden until the user opens it — and Tauri drops events for
+  // listeners that attach later. So after wiring the live listener we pull the
+  // current snapshot via the `current_state` command and feed it through the
+  // same handler. Guarded by `liveSeen`: if a live event already arrived while
+  // the invoke was in flight, that stream is authoritative and newer, so we
+  // skip the (now-stale) snapshot to avoid regressing the UI.
+  function pullSnapshot(getLiveSeen) {
+    const core = window.__TAURI__ && window.__TAURI__.core;
+    if (!core || typeof core.invoke !== "function") {
+      console.warn("__TAURI__.core.invoke unavailable; cannot pull current state");
+      return;
+    }
+    core
+      .invoke("current_state")
+      .then((snap) => {
+        if (!snap || getLiveSeen()) return;
+        if (snap.state) handleBridgeEvent(snap.state);
+        if (snap.nowPlaying) handleBridgeEvent(snap.nowPlaying);
+      })
+      .catch((err) => console.error("current_state failed", err));
+  }
+
   function init() {
     const tauri = window.__TAURI__;
     if (!tauri || !tauri.event || typeof tauri.event.listen !== "function") {
       console.error("window.__TAURI__.event.listen is unavailable; is this running inside Tauri?");
       return;
     }
+    let liveSeen = false;
     tauri.event
-      .listen("bridge-event", ({ payload }) => handleBridgeEvent(payload))
+      .listen("bridge-event", ({ payload }) => {
+        liveSeen = true;
+        handleBridgeEvent(payload);
+      })
       .catch((err) => console.error("Failed to attach bridge-event listener", err));
+    tauri.event
+      .listen("bridge-fatal", ({ payload }) => showFatal(payload))
+      .catch((err) => console.error("Failed to attach bridge-fatal listener", err));
+    pullSnapshot(() => liveSeen);
   }
 
   if (document.readyState === "loading") {

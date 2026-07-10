@@ -6,7 +6,7 @@
 
 use std::sync::Mutex;
 
-use bridge_core::{BridgeEvent, BridgeState};
+use bridge_core::{BridgeEvent, BridgeState, NowPlayingVm};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -15,8 +15,13 @@ use tauri::{
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_notification::NotificationExt;
 
-/// Latest bridge state, kept in Tauri managed state for the tray (Task 6).
+/// Latest bridge state, kept in Tauri managed state for the tray (Task 6) and
+/// replayed to the webview via `current_state` when the window opens.
 pub struct LatestBridgeState(pub Mutex<Option<BridgeState>>);
+
+/// Latest now-playing view-model, cached so a window opened mid-song repaints
+/// its track card immediately instead of waiting for the next ytmd push.
+pub struct LatestNowPlaying(pub Mutex<Option<NowPlayingVm>>);
 
 /// Bring the main status window to the foreground.
 fn show_main_window(app: &tauri::AppHandle) {
@@ -54,6 +59,31 @@ fn tray_status_for_state(state: &BridgeState) -> (&'static str, tauri::image::Im
     }
 }
 
+/// Current bridge snapshot the webview pulls on load. `bridge-event`s are
+/// emitted once, near startup, into a window that is hidden until the user
+/// opens it — and Tauri does not replay events for listeners that attach
+/// later. Without this pull the window would sit on its default "Starting…"
+/// card forever. Shapes match the live `bridge-event` payloads so the
+/// frontend can feed them through the same handler.
+#[tauri::command]
+fn current_state(
+    state: tauri::State<'_, LatestBridgeState>,
+    now_playing: tauri::State<'_, LatestNowPlaying>,
+) -> serde_json::Value {
+    let state = state
+        .0
+        .lock()
+        .unwrap()
+        .map(|s| serde_json::json!({ "type": "state", "data": s }));
+    let now_playing = now_playing
+        .0
+        .lock()
+        .unwrap()
+        .clone()
+        .map(|vm| serde_json::json!({ "type": "now-playing", "data": vm }));
+    serde_json::json!({ "state": state, "nowPlaying": now_playing })
+}
+
 /// Whether the app is currently registered as a login item (Task 8).
 #[tauri::command]
 fn get_autostart(app: tauri::AppHandle) -> bool {
@@ -70,14 +100,26 @@ fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Must be the first plugin: a second launch (double-click, autostart +
+        // manual open) hands its argv to this callback and exits, rather than
+        // spawning a rival tray whose bridge would then die fighting for the
+        // board-server port. We just surface the window that's already running.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            show_main_window(app);
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
-        .invoke_handler(tauri::generate_handler![get_autostart, set_autostart])
+        .invoke_handler(tauri::generate_handler![
+            current_state,
+            get_autostart,
+            set_autostart
+        ])
         .manage(LatestBridgeState(Mutex::new(None)))
+        .manage(LatestNowPlaying(Mutex::new(None)))
         .setup(|app| {
             // Tray-only app: don't show a Dock icon on macOS.
             #[cfg(target_os = "macos")]
@@ -127,6 +169,10 @@ pub fn run() {
                         let (tooltip, icon) = tray_status_for_state(s);
                         let _ = tray.set_tooltip(Some(tooltip));
                         let _ = tray.set_icon(Some(icon));
+                    }
+                    if let BridgeEvent::NowPlaying(vm) = &ev {
+                        let latest = handle2.state::<LatestNowPlaying>();
+                        *latest.0.lock().unwrap() = Some(vm.clone());
                     }
                     if let BridgeEvent::AuthCode { code } = &ev {
                         // Seen with the window closed/hidden — the tray has no
