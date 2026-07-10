@@ -338,7 +338,7 @@ dependencies = [
 
 [[package]]
 name = "bridge-cli"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "bridge-core",
@@ -349,7 +349,7 @@ dependencies = [
 
 [[package]]
 name = "bridge-core"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "futures-util",
@@ -5747,7 +5747,7 @@ dependencies = [
 
 [[package]]
 name = "ytmboard-app"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "bridge-core",
