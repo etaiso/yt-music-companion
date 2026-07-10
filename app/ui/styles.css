@@ -153,12 +153,36 @@ h1 {
 .card.connected {
   max-width: 440px;
   text-align: left;
+  /* This card is the tallest state and the window height is locked (480x360),
+     so its vertical rhythm is tightened to fit with a clear strip at the
+     bottom — this leaves ~8px between the card's bottom border and the pinned
+     .app-version tag, which would otherwise collide with the last row. */
+  padding: 1.1rem 1.5rem 0.95rem;
 }
 
 .card.connected .glyph,
 .card.connected h1,
 .card.connected .body {
   text-align: center;
+}
+
+.card.connected .glyph {
+  font-size: 2.1rem;
+  margin-bottom: 0.4rem;
+}
+
+.card.connected h1 {
+  margin-bottom: 0.35rem;
+}
+
+.card.connected .now-playing {
+  margin-top: 0.7rem;
+  padding-top: 0.8rem;
+}
+
+.card.connected .settings-row {
+  margin-top: 0.6rem;
+  padding-top: 0.7rem;
 }
 
 .now-playing {
