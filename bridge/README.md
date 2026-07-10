@@ -1,4 +1,9 @@
-# ytmboard-bridge
+# ytmboard-bridge (Node — legacy / dev)
+
+> **Note:** this is the original Node.js bridge. The shipping implementation is now the
+> native-Rust bridge in [`app/`](../app/) (`bridge-core` + `bridge-cli`), which also backs
+> the downloadable tray app. This Node bridge is kept for development and reference; the
+> two share the same wire contracts (board WS protocol, view-model, mDNS).
 
 Cross-platform bridge (Node.js, macOS or Windows): **ytmdesktop Companion Server →
 `now_playing_vm` → board**.
