@@ -27,8 +27,8 @@ ytmdesktop (Mac/Win)  ──►  bridge (Node.js)  ──Wi-Fi──►  ESP32-S
   audio + state            normalize → VM               render + emit commands
 ```
 
-- **Board** — pure UI client/controller. ESP32-S3 (BLE only, no A2DP), so it never
-  touches audio.
+- **Board** — pure UI client/controller over Wi-Fi. The ESP32-S3 has no Bluetooth
+  Classic/A2DP, so it can't be an audio device; playback and decoding stay on the host.
 - **Bridge** — talks to ytmdesktop's Companion Server (`localhost:9863`, Socket.IO +
   REST), pushes pre-resized 172×172 RGB565 cover art the board blits directly.
 - **View-model** (`now_playing_vm_t`) — source-agnostic render layer; all
