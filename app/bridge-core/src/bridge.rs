@@ -16,6 +16,47 @@ pub enum BridgeEvent {
     Log(String),
 }
 
+// Manual impl rather than `#[derive(Serialize)]` + `#[serde(tag = "type")]`:
+// serde's internally-tagged representation only merges a newtype variant's
+// payload into the tag object when that payload itself serializes to a map.
+// `BridgeState` and `String` don't (they serialize as bare JSON strings), so
+// the derive silently produces `{"type":"state","waiting-for-board":null}`
+// instead of the `{"type":"state","data":"waiting-for-board"}` shape the
+// frontend needs. Hand-rolling keeps the tuple-variant shape (so
+// bridge-cli's `match` is untouched) while giving every variant an explicit
+// `data` field.
+impl serde::Serialize for BridgeEvent {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        match self {
+            BridgeEvent::State(s) => {
+                let mut map = serializer.serialize_map(Some(2))?;
+                map.serialize_entry("type", "state")?;
+                map.serialize_entry("data", s)?;
+                map.end()
+            }
+            BridgeEvent::AuthCode { code } => {
+                let mut map = serializer.serialize_map(Some(2))?;
+                map.serialize_entry("type", "auth-code")?;
+                map.serialize_entry("code", code)?;
+                map.end()
+            }
+            BridgeEvent::NowPlaying(vm) => {
+                let mut map = serializer.serialize_map(Some(2))?;
+                map.serialize_entry("type", "now-playing")?;
+                map.serialize_entry("data", vm)?;
+                map.end()
+            }
+            BridgeEvent::Log(msg) => {
+                let mut map = serializer.serialize_map(Some(2))?;
+                map.serialize_entry("type", "log")?;
+                map.serialize_entry("data", msg)?;
+                map.end()
+            }
+        }
+    }
+}
+
 pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
     let http = reqwest::Client::builder()
         .timeout(Duration::from_secs(60)) // > the ~30s Allow window
@@ -205,5 +246,48 @@ async fn push_vm(
                 }
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod event_serde_tests {
+    use super::*;
+    use crate::state::BridgeState;
+
+    #[test]
+    fn state_event_serializes_tagged() {
+        let j = serde_json::to_value(BridgeEvent::State(BridgeState::WaitingForBoard)).unwrap();
+        assert_eq!(j["type"], "state");
+        assert_eq!(j["data"], "waiting-for-board");
+    }
+
+    #[test]
+    fn auth_code_event_serializes_tagged() {
+        let j = serde_json::to_value(BridgeEvent::AuthCode { code: "1234".into() }).unwrap();
+        assert_eq!(j["type"], "auth-code");
+        assert_eq!(j["code"], "1234");
+    }
+
+    #[test]
+    fn now_playing_event_nests_vm_under_data() {
+        let state = serde_json::json!({
+            "video": { "title": "Creep", "author": "Radiohead" },
+            "player": { "trackState": 1 }
+        });
+        let vm = crate::normalize::normalize(&state, true).unwrap();
+        let j = serde_json::to_value(BridgeEvent::NowPlaying(vm)).unwrap();
+        assert_eq!(j["type"], "now-playing");
+        // vm nests under "data" as an object (not flattened) with its snake_case keys.
+        assert!(j["data"].is_object());
+        assert_eq!(j["data"]["title"], "Creep");
+        assert_eq!(j["data"]["artist"], "Radiohead");
+        assert_eq!(j["data"]["playback"], "playing");
+    }
+
+    #[test]
+    fn log_event_serializes_tagged() {
+        let j = serde_json::to_value(BridgeEvent::Log("hello".into())).unwrap();
+        assert_eq!(j["type"], "log");
+        assert_eq!(j["data"], "hello");
     }
 }

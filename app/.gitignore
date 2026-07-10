@@ -1,1 +1,3 @@
 /target
+# Tauri build-time generated ACL/permission schemas
+/src-tauri/gen/schemas
