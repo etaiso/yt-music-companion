@@ -1,4 +1,4 @@
-// Guided status window for the YTM Board Bridge tray app.
+// Guided status window for the YT Music Companion tray app.
 // Renders the bridge state machine (BridgeEvent, forwarded from Rust as the
 // "bridge-event" webview event) and its calls-to-action. Plain DOM, no
 // bundler — `window.__TAURI__` is injected because `app.withGlobalTauri` is
