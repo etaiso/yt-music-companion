@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capabilities for the YTM Board Bridge tray app.",
+  "description": "Default capabilities for the YT Music Companion tray app.",
   "windows": ["main"],
   "permissions": [
     "core:default",

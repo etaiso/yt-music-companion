@@ -1,4 +1,4 @@
-//! YT Music board bridge — Tauri v2 tray shell.
+//! YT Music Companion — Tauri v2 tray shell.
 //!
 //! Window + tray with Open/Quit, close-hides-to-tray, the notification /
 //! autostart / opener plugins registered, and `bridge-core` running on
@@ -155,7 +155,7 @@ pub fn run() {
 
             let tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("YT Music board bridge")
+                .tooltip("YT Music Companion")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
