@@ -47,6 +47,10 @@
   // card so a user without it installed knows where to get it.
   const YTMD_DOWNLOAD_URL = "https://ytmdesktop.app";
 
+  // Our own landing page — the full setup walkthrough (including how to enable
+  // ytmdesktop's Companion Server) lives here, so onboarding cards point to it.
+  const LANDING_URL = "https://etaiso.github.io/yt-music-companion/";
+
   function fmtTime(sec) {
     const s = Math.max(0, Math.floor(Number(sec) || 0));
     const m = Math.floor(s / 60);
@@ -209,10 +213,7 @@
           body: "Start ytmdesktop and enable its Companion Server, then this window will pick it up automatically.",
           actions: [
             { label: "Download ytmdesktop", url: YTMD_DOWNLOAD_URL },
-            {
-              label: "How to enable Companion Server",
-              url: "https://github.com/ytmdesktop/ytmdesktop#companion-server",
-            },
+            { label: "Setup guide", url: LANDING_URL },
           ],
         });
       case "not-authorized":
@@ -264,8 +265,8 @@
         el("button", {
           class: "btn",
           type: "button",
-          text: "How to enable Companion Server",
-          onclick: () => openExternal("https://github.com/ytmdesktop/ytmdesktop#companion-server"),
+          text: "Setup guide",
+          onclick: () => openExternal(LANDING_URL),
         }),
       ]),
     ]);
