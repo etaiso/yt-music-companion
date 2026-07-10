@@ -1,7 +1,14 @@
 name: Release firmware
 
 # On a version tag (e.g. v1.0.0), build the firmware and attach the single-file
-# ytm-firmware.bin to a GitHub Release as a versioned, downloadable archive.
+# ytm-firmware.bin to a GitHub Release as a versioned, downloadable archive, then
+# build + attach the Windows/macOS bridge-app installers.
+#
+# Dry run: trigger manually with dry_run=true to build everything on the real
+# runners WITHOUT publishing anything — the firmware bin and each installer are
+# uploaded as workflow artifacts instead. Use this to validate the build/link/
+# bundle path before cutting a real tag.
+#
 # This is independent of pages.yml (which serves the bin from the live installer
 # site); it does NOT deploy Pages, so there is no single-deployment conflict.
 on:
@@ -10,8 +17,12 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to (re)build a release for"
-        required: true
+        description: "Existing tag to (re)build a release for (leave blank for a dry run)"
+        required: false
+      dry_run:
+        description: "Build but publish nothing — upload firmware + installers as workflow artifacts"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -32,7 +43,16 @@ jobs:
           # two levels up writes ytm-firmware.bin at the repo root for the next step.
           command: idf.py build && idf.py merge-bin -o ../../ytm-firmware.bin
 
+      - name: Upload firmware as artifact (dry run — publishes nothing)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ytm-firmware
+          path: ytm-firmware.bin
+          if-no-files-found: error
+
       - name: Create or update the release with the firmware asset
+        if: ${{ github.event.inputs.dry_run != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
@@ -49,7 +69,7 @@ jobs:
             --clobber
 
   app:
-    name: Build bridge app (${{ matrix.os }})
+    name: Build bridge app (${{ matrix.label }})
     needs: release
     strategy:
       fail-fast: false
@@ -57,10 +77,13 @@ jobs:
         include:
           - os: macos-latest # arm64
             args: "--target aarch64-apple-darwin"
+            label: macos-arm64
           - os: macos-latest # x64
             args: "--target x86_64-apple-darwin"
+            label: macos-x64
           - os: windows-latest
             args: ""
+            label: windows-x64
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -73,15 +96,29 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: rustup target add ${{ contains(matrix.args, 'aarch64') && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
 
-      # tauri-action uploads to the release for this tag; the firmware `release`
-      # job above (needs: release) creates it first, so this only attaches
-      # the platform installer as an additional asset. No code signing: builds
-      # are unsigned per the design's non-goals.
+      # On a real tag, tauri-action uploads the installer to the release for this
+      # tag (the firmware `release` job above created it first, via needs:release).
+      # For a dry run we leave tagName/releaseName blank so tauri-action only
+      # BUILDS the bundle (no release touched); the next step uploads it as an
+      # artifact. No code signing — builds are unsigned per the design's non-goals.
       - uses: tauri-apps/tauri-action@v0
+        id: tauri
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: app/src-tauri
-          tagName: ${{ github.event.inputs.tag || github.ref_name }}
-          releaseName: ${{ github.event.inputs.tag || github.ref_name }}
+          # NB: order matters. `cond && '' || X` would leak X because '' is falsy;
+          # instead gate on NOT-dry-run so the dry-run path falls through to ''.
+          tagName: ${{ github.event.inputs.dry_run != 'true' && (github.event.inputs.tag || github.ref_name) || '' }}
+          releaseName: ${{ github.event.inputs.dry_run != 'true' && (github.event.inputs.tag || github.ref_name) || '' }}
           args: ${{ matrix.args }}
+
+      - name: Upload installer as artifact (dry run — publishes nothing)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-app-${{ matrix.label }}
+          # Workspace target dir is app/target; --target adds a triple subdir on
+          # macOS, so the **/ glob covers both the windows and macOS layouts.
+          path: app/target/**/release/bundle/**
+          if-no-files-found: error

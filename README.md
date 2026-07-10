@@ -14,17 +14,19 @@ current track and sending commands (play/pause/skip/like/seek/volume).
 </p>
 
 Audio playback runs on a host PC via the **ytmdesktop** app. A small cross-platform
-bridge (Node.js, runs on macOS or Windows) normalizes ytmdesktop's state into the
-board's view-model and serves it over Wi-Fi. No audio, decoding, TLS, or auth runs on
-the board itself. See [bridge/WINDOWS-SETUP.md](bridge/WINDOWS-SETUP.md) for the
-Windows host setup (recommended when the Mac is corporate-managed — its firewall
-blocks the board's inbound connection).
+**bridge** normalizes ytmdesktop's state into the board's view-model and serves it over
+Wi-Fi. No audio, decoding, TLS, or auth runs on the board itself. The bridge ships as a
+**downloadable tray app** (native Rust + Tauri, Windows & macOS) for non-technical users;
+the original Node bridge remains in [`bridge/`](bridge/) for development. See
+[bridge/WINDOWS-SETUP.md](bridge/WINDOWS-SETUP.md) for Windows host notes (the recommended
+host when the Mac is corporate-managed — its firewall blocks the board's inbound
+connection).
 
 ## Architecture
 
 ```
-ytmdesktop (Mac/Win)  ──►  bridge (Node.js)  ──Wi-Fi──►  ESP32-S3 board (UI)
-  audio + state            normalize → VM               render + emit commands
+ytmdesktop (Mac/Win)  ──►  bridge (tray app)  ──Wi-Fi──►  ESP32-S3 board (UI)
+  audio + state            normalize → VM                render + emit commands
 ```
 
 - **Board** — pure UI client/controller. ESP32-S3 (BLE only, no A2DP), so it never
@@ -50,7 +52,8 @@ ytmdesktop (Mac/Win)  ──►  bridge (Node.js)  ──Wi-Fi──►  ESP32-S
 
 - **Hardware:** Waveshare ESP32-S3-Touch-AMOLED-2.16 (480×480, CO5300 QSPI)
 - **Firmware:** ESP-IDF + vendor BSP, LVGL v9.5.0
-- **Backend:** ytmdesktop Companion Server + cross-platform Node.js bridge (macOS or Windows)
+- **Backend:** ytmdesktop Companion Server + a downloadable tray bridge app (native Rust +
+  Tauri, Windows & macOS); Node bridge in `bridge/` for development
 
 ## Status
 
@@ -60,10 +63,38 @@ data. See [docs/PROJECT-OVERVIEW.md](docs/PROJECT-OVERVIEW.md) for full status a
 
 ## Quick start
 
-Three ways to run it: the desktop simulator (fastest, no hardware), the real board via
-the web installer (no toolchain), or the real board built from source with ESP-IDF.
+**The no-toolchain path (recommended):** flash the board from your browser, then install
+the bridge app on your PC. No clone, no compiler, no CLI. Development paths (simulator,
+build-from-source) follow.
 
-### Option A — Desktop simulator (no hardware)
+### Step 1 — Flash your board (web installer)
+
+On a computer with **Chrome or Edge**, open the install page, plug in the board, click
+**Install**, and enter your 2.4&nbsp;GHz Wi-Fi when prompted. No ESP-IDF, no `menuconfig`.
+The page is published at **https://etaiso.github.io/yt-music-companion/install/** (from
+`site/install/`). See [site/install/README.md](site/install/README.md).
+
+### Step 2 — Get the bridge
+
+Download the bridge app for your OS from the
+[**latest release**](https://github.com/etaiso/yt-music-companion/releases/latest)
+(Windows `.exe` / macOS `.dmg`). It runs in the tray/menu bar, finds ytmdesktop, waits
+for your board, and relays playback — nothing to build.
+
+**Requires [ytmdesktop](https://ytmdesktop.app)** on the same PC, with **Companion Server**
++ **authorization** enabled (Settings → Integration). On first run the app shows a one-time
+code — click **Allow** in ytmdesktop within ~30s. Both board and PC must share the same
+**2.4GHz** Wi-Fi (the ESP32-S3 is 2.4GHz only). Unsigned for now, so accept the SmartScreen
+/ Gatekeeper "Run anyway" / right-click-Open prompt.
+
+Then **play a song** — the board auto-discovers the bridge over mDNS and switches to the
+live track, cover art, and controls.
+
+---
+
+## For development
+
+### Desktop simulator (no hardware)
 
 Runs the exact same `ui/` code in an SDL window, cycling through all six player states:
 
@@ -74,21 +105,11 @@ cd sim && cmake -B build && cmake --build build && ./build/ytm_sim
 
 On Windows, see [sim/README.md](sim/README.md) for the MSYS2 + SDL2 setup.
 
-### Option B — Web installer (no toolchain)
-
-On a computer with **Chrome or Edge**, open the install page, plug in the board,
-click **Install**, and enter your 2.4&nbsp;GHz Wi-Fi when prompted. No ESP-IDF, no
-`menuconfig`. The page is published at `<pages-url>/install/` (from `site/install/`).
-See [site/install/README.md](site/install/README.md).
-
-*(The manual ESP-IDF path below is still available for development.)*
-
-### Option C — On the board, with ESP-IDF (for development)
+### Build the firmware from source (ESP-IDF)
 
 **Prerequisites:**
 
 - **ESP-IDF v5.5+** — to build and flash the firmware ([install guide](docs/RUNNING.md#21-install-esp-idf-one-time)).
-- **Node.js 18+** — to run the bridge.
 - **[ytmdesktop](https://ytmdesktop.app)** on the host PC — **required** (the board is a
   remote, not a standalone player), with **Companion Server** + **authorization** enabled
   (Settings → Integration).
@@ -126,22 +147,28 @@ the new entry is the board:
 - **Windows:** `Get-CimInstance Win32_PnPEntity | ? Name -match 'COM\d+' | % Name`
   (board shows as **"USB Serial Device (COMx)"** — the ESP32-S3's native USB-JTAG)
 
-**2. Run the bridge** on the host PC running [ytmdesktop](https://ytmdesktop.app)
-(enable **Companion Server** + **authorization** in its Settings → Integration first):
+**2. Run the bridge from source** on the host PC running [ytmdesktop](https://ytmdesktop.app)
+(enable **Companion Server** + **authorization** in its Settings → Integration first).
+The native-Rust bridge is the current implementation — developer parity with the shipped
+tray app:
 
 ```sh
-cd bridge
-npm install
-npm start                           # first run: click ALLOW in ytmdesktop within ~30s
+cd app
+cargo run -p bridge-cli             # first run: click ALLOW in ytmdesktop within ~30s
 ```
+
+See [app/README.md](app/README.md) for the workspace layout and the Windows toolchain
+note. The original Node bridge is still available (`cd bridge && npm install && npm start`)
+— see [bridge/README.md](bridge/README.md).
 
 **3. Play a song.** The board auto-discovers the bridge over mDNS (both must share the
 same subnet — Ethernet or the **2.4GHz** Wi-Fi band) and switches to the live track,
 cover art, and controls.
 
-Full details: [docs/RUNNING.md](docs/RUNNING.md) (build/flash), [bridge/README.md](bridge/README.md)
-and [bridge/WINDOWS-SETUP.md](bridge/WINDOWS-SETUP.md) (running the bridge, recommended
-on Windows when the Mac is corporate-managed).
+Full details: [docs/RUNNING.md](docs/RUNNING.md) (build/flash), [app/README.md](app/README.md)
+(Rust bridge + tray app), [bridge/README.md](bridge/README.md) and
+[bridge/WINDOWS-SETUP.md](bridge/WINDOWS-SETUP.md) (Node bridge, recommended on Windows when
+the Mac is corporate-managed).
 
 ## Landing page
 
