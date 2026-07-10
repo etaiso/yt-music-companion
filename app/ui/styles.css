@@ -22,6 +22,7 @@ html,
 body {
   margin: 0;
   height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -37,7 +38,7 @@ body {
   color: var(--fg);
   display: grid;
   place-items: center;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .shell {
