@@ -51,6 +51,32 @@ fn playback_from(track_state: i64) -> Playback {
     }
 }
 
+/// A blank "connected but nothing playing" frame. Sent to the board when the
+/// ytmd socket is up but no track has metadata yet: the board treats ANY frame
+/// as link-up and an empty title as its idle "waiting for a track" screen, so
+/// it leaves the connecting/loader screen instead of timing out to OFFLINE.
+/// Deliberately NOT surfaced to the desktop window as a now-playing update —
+/// there an empty title would render as "Untitled" rather than the intended
+/// "Waiting for a track…" placeholder.
+pub fn idle_vm(connected: bool) -> NowPlayingVm {
+    NowPlayingVm {
+        source_name: "YouTube Music".into(),
+        is_live: false,
+        track_id: String::new(),
+        title: String::new(),
+        artist: String::new(),
+        album: String::new(),
+        ad_playing: false,
+        cover_url: None,
+        playback: Playback::Paused,
+        is_favorite: false,
+        position_sec: 0,
+        duration_sec: 0,
+        level: 0,
+        host_connected: connected,
+    }
+}
+
 /// Returns `None` to mean "skip this update" — used while the player has no
 /// metadata yet, so the board doesn't flicker partial data.
 pub fn normalize(state: &Value, connected: bool) -> Option<NowPlayingVm> {

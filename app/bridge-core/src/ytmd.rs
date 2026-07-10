@@ -137,18 +137,29 @@ pub async fn connect(
     // on_reconnect fires before every reconnect attempt. Re-handshake only when
     // an auth failure was flagged; otherwise return default settings (keeps the
     // current token). Mirrors JS: swap socket.auth = { token } on auth error.
+    //
+    // It also doubles as our authoritative "host is currently down" signal: with
+    // reconnection enabled, rust_socketio can start retrying WITHOUT emitting a
+    // clean `Event::Close`, so relying on Close alone left the bridge (and the
+    // window) believing ytmd was still connected — the stale-song bug (#2).
+    // A reconnect attempt only happens while disconnected, so re-signalling the
+    // drop here is correct; it's idempotent (the orchestrator just stays in the
+    // disconnected state until the next successful connect).
     let rc_http = http.clone();
     let rc_token = token.clone();
     let rc_lock = reauth_lock.clone();
     let rc_on_code = on_code.clone();
     let rc_flag = auth_failed.clone();
+    let rc_disc = on_disconnect.clone();
     let reconnect_cb = move || {
         let http = rc_http.clone();
         let token = rc_token.clone();
         let lock = rc_lock.clone();
         let on_code = rc_on_code.clone();
         let flag = rc_flag.clone();
+        let disc = rc_disc.clone();
         async move {
+            let _ = disc.send(());
             let mut settings = ReconnectSettings::new();
             if flag.swap(false, Ordering::SeqCst) {
                 let stale = token.read().await.clone();

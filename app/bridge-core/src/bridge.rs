@@ -1,7 +1,7 @@
 //! Wires ytmdesktop -> normalize -> board (ports index.js), emitting a single
 //! BridgeEvent stream both the CLI and the Tauri shell consume.
-use crate::state::{BridgeState, Signal};
-use crate::{auth, board_server, commands, cover, discovery, normalize, state, ytmd};
+use crate::state::{BridgeState, Machine, Signal};
+use crate::{auth, board_server, commands, cover, discovery, normalize, ytmd};
 use anyhow::Result;
 use serde_json::Value;
 use std::sync::Arc;
@@ -65,14 +65,21 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
     let emit = |e: BridgeEvent| {
         let _ = events.send(e);
     };
-    let set_state = |s: BridgeState| {
-        let _ = events.send(BridgeEvent::State(s));
-    };
 
-    // Single source of truth for the current state, threaded through every
-    // transition so recovery (e.g. YtmdDisconnected -> WaitingForBoard) works.
-    let mut cur = BridgeState::Starting;
-    set_state(cur);
+    // Two orthogonal connection facts (ytmd socket up, board attached) tracked
+    // in one place; the rendered `BridgeState` is DERIVED from them so neither
+    // event can clobber the other (see state.rs). `publish` emits only on a
+    // real change, so the tray/window don't redraw on every no-op signal.
+    let mut machine = Machine::new();
+    let mut shown: Option<BridgeState> = None;
+    let mut publish = |m: &Machine| {
+        let s = m.state();
+        if shown != Some(s) {
+            shown = Some(s);
+            let _ = events.send(BridgeEvent::State(s));
+        }
+    };
+    publish(&machine);
 
     // Board server + command handling.
     let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel::<(String, Option<f64>)>();
@@ -102,14 +109,14 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
         // Probe first so we can distinguish "host down" (retry quietly) from
         // "up but not yet authorized" (surface a pairing code).
         if !ytmd::is_reachable(&http).await {
-            cur = state::next_state(cur, Signal::YtmdProbeFailed);
-            set_state(cur);
+            machine.apply(Signal::YtmdProbeFailed);
+            publish(&machine);
             sleep(Duration::from_secs(3)).await;
             continue;
         }
 
-        cur = state::next_state(cur, Signal::ServerUpNoToken);
-        set_state(cur);
+        machine.apply(Signal::ServerUpNoToken);
+        publish(&machine);
         let fresh = match auth::ensure_token(&http, |c| on_code(c)).await {
             Ok(t) => t,
             Err(e) => {
@@ -142,8 +149,11 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
         }
     };
 
-    cur = BridgeState::WaitingForBoard;
-    set_state(cur);
+    // Socket is connected: mark the feed authorized/up. Board attachment is
+    // driven separately by the board server's connect events in the loop below,
+    // so this no longer force-resets an already-attached board (the #1 bug).
+    machine.apply(Signal::Authorized);
+    publish(&machine);
 
     // Shared last-vm for seek clamping + cover dedupe.
     let last_vm = Arc::new(Mutex::new(None::<normalize::NowPlayingVm>));
@@ -198,34 +208,58 @@ pub async fn run(events: mpsc::UnboundedSender<BridgeEvent>) -> Result<()> {
             }
             Some(()) = yconn_rx.recv() => {
                 emit(BridgeEvent::Log("[ytmd] socket connected".into()));
-                if let Some(st) = ytmd.fetch_state_once().await {
-                    last_state = Some(st.clone());
-                    push_vm(&st, true, &board, &last_vm, &last_cover_url, &emit).await;
+                // Seed the board on (re)connect. The socket only pushes on a
+                // CHANGE, so a board attached during idle/paused playback would
+                // otherwise see nothing. If the player has no track yet (fresh
+                // launch, nothing ever played) `normalize` yields None — send an
+                // explicit idle frame so the board still leaves its loader
+                // instead of timing out to OFFLINE (the board-side #1 symptom).
+                let seeded = match ytmd.fetch_state_once().await {
+                    Some(st) if normalize::normalize(&st, true).is_some() => {
+                        last_state = Some(st.clone());
+                        push_vm(&st, true, &board, &last_vm, &last_cover_url, &emit).await;
+                        true
+                    }
+                    _ => false,
+                };
+                if !seeded {
+                    board.broadcast_state(normalize::idle_vm(true));
                 }
-                // Fires on every connect incl. reconnect: idempotent on first
-                // connect (WaitingForBoard -> WaitingForBoard), recovers after a
-                // drop (YtmdDisconnected -> WaitingForBoard).
-                cur = state::next_state(cur, Signal::Authorized);
-                set_state(cur);
+                // Fires on every connect incl. reconnect. board_up is untouched,
+                // so a mid-song reconnect returns straight to BoardConnected.
+                machine.apply(Signal::Authorized);
+                publish(&machine);
             }
             Some(()) = ydisc_rx.recv() => {
                 emit(BridgeEvent::Log("[ytmd] socket disconnected".into()));
-                cur = state::next_state(cur, Signal::YtmdDropped);
-                set_state(cur);
-                // Tell the board the host went away.
-                let vm = last_vm.lock().await.clone();
-                if let Some(mut v) = vm {
-                    v.host_connected = false;
-                    board.broadcast_state(v);
-                }
+                machine.apply(Signal::YtmdDropped);
+                publish(&machine);
+                // Blank the track before telling the board the host went away,
+                // so neither the board nor a reopened window keeps showing a
+                // stale song from a source that's no longer live (#2). Keep
+                // `last_vm` untouched so command mapping still has the last real
+                // track; a reconnect reseeds the display anyway.
+                let mut v = last_vm
+                    .lock()
+                    .await
+                    .clone()
+                    .unwrap_or_else(|| normalize::idle_vm(false));
+                v.host_connected = false;
+                v.title = String::new();
+                v.artist = String::new();
+                v.album = String::new();
+                v.cover_url = None;
+                board.broadcast_state(v);
+                board.broadcast_cover(None);
+                *last_cover_url.lock().await = None;
             }
             Some(()) = board_conn_rx.recv() => {
-                cur = state::next_state(cur, Signal::BoardAttached);
-                set_state(cur);
+                machine.apply(Signal::BoardAttached);
+                publish(&machine);
             }
             Some(()) = board_disc_rx.recv() => {
-                cur = state::next_state(cur, Signal::BoardDetached);
-                set_state(cur);
+                machine.apply(Signal::BoardDetached);
+                publish(&machine);
             }
             else => break,
         }
