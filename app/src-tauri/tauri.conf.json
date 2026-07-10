@@ -15,8 +15,11 @@
         "height": 360,
         "minWidth": 480,
         "minHeight": 360,
+        "maxWidth": 480,
+        "maxHeight": 360,
         "visible": false,
-        "resizable": true
+        "resizable": false,
+        "maximizable": false
       }
     ],
     "security": {

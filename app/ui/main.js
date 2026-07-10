@@ -43,27 +43,9 @@
     opener.openUrl(url).catch((err) => console.error("openUrl failed for", url, err));
   }
 
-  // Try to launch the installed YouTube Music Desktop app via the backend
-  // `open_ytmd` command. If it isn't installed where we look (command returns
-  // false) or the bridge isn't reachable, fall back to the download page.
+  // Download page for YouTube Music Desktop, linked from the "ytmd not found"
+  // card so a user without it installed knows where to get it.
   const YTMD_DOWNLOAD_URL = "https://ytmdesktop.app";
-  function openYtmd() {
-    const core = window.__TAURI__ && window.__TAURI__.core;
-    if (!core || typeof core.invoke !== "function") {
-      console.warn("__TAURI__.core.invoke unavailable; opening download page instead");
-      openExternal(YTMD_DOWNLOAD_URL);
-      return;
-    }
-    core
-      .invoke("open_ytmd")
-      .then((launched) => {
-        if (!launched) openExternal(YTMD_DOWNLOAD_URL);
-      })
-      .catch((err) => {
-        console.error("open_ytmd failed", err);
-        openExternal(YTMD_DOWNLOAD_URL);
-      });
-  }
 
   function fmtTime(sec) {
     const s = Math.max(0, Math.floor(Number(sec) || 0));
@@ -226,7 +208,6 @@
           title: "YouTube Music Desktop isn’t running",
           body: "Start ytmdesktop and enable its Companion Server, then this window will pick it up automatically.",
           actions: [
-            { label: "Open YouTube Music Desktop", onClick: openYtmd },
             { label: "Download ytmdesktop", url: YTMD_DOWNLOAD_URL },
             {
               label: "How to enable Companion Server",

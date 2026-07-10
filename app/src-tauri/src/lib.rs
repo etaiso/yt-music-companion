@@ -34,61 +34,6 @@ fn show_main_window(app: &tauri::AppHandle) {
     }
 }
 
-/// Best-effort launch of the installed YouTube Music Desktop app (#3). Returns
-/// `Ok(true)` if we managed to spawn it, `Ok(false)` if it couldn't be found —
-/// the UI keeps its download link as the fallback. Platform-specific because
-/// there's no cross-platform "launch an app by name".
-#[tauri::command]
-fn open_ytmd() -> Result<bool, String> {
-    use std::process::Command;
-
-    #[cfg(target_os = "windows")]
-    {
-        // ytmdesktop ships via electron-builder NSIS, which installs per-user
-        // under LOCALAPPDATA by default; also probe the per-machine location.
-        // The exe name is fixed by the upstream build config.
-        let exe = "YouTube Music Desktop App.exe";
-        let mut candidates: Vec<std::path::PathBuf> = Vec::new();
-        if let Ok(local) = std::env::var("LOCALAPPDATA") {
-            candidates.push(
-                std::path::Path::new(&local)
-                    .join("Programs")
-                    .join("youtube-music-desktop-app")
-                    .join(exe),
-            );
-        }
-        if let Ok(pf) = std::env::var("ProgramFiles") {
-            candidates.push(std::path::Path::new(&pf).join("YouTube Music Desktop App").join(exe));
-        }
-        for path in candidates {
-            if path.exists() {
-                return Command::new(&path).spawn().map(|_| true).map_err(|e| e.to_string());
-            }
-        }
-        Ok(false)
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        // `open -a` launches by app name wherever Launch Services knows it; a
-        // non-zero status means it isn't installed.
-        let status = Command::new("open")
-            .args(["-a", "YouTube Music Desktop App"])
-            .status()
-            .map_err(|e| e.to_string())?;
-        Ok(status.success())
-    }
-
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    {
-        // Linux: rely on the binary being on PATH (distro package / AppImage).
-        match Command::new("youtube-music-desktop-app").spawn() {
-            Ok(_) => Ok(true),
-            Err(_) => Ok(false),
-        }
-    }
-}
-
 /// Tray tooltip + state-tinted icon for each `BridgeState` (Task 6).
 ///
 /// Icons are small (32x32) badge variants baked in at compile time via
@@ -187,8 +132,7 @@ pub fn run() {
             current_state,
             app_version,
             get_autostart,
-            set_autostart,
-            open_ytmd
+            set_autostart
         ])
         .manage(LatestBridgeState(Mutex::new(None)))
         .manage(LatestNowPlaying(Mutex::new(None)))
