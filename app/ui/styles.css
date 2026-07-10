@@ -47,6 +47,19 @@ body {
   place-items: center;
 }
 
+/* Persistent build tag, pinned to the corner so it never shifts the centered
+   card. Non-interactive and dim — present for support, not attention. */
+.app-version {
+  position: fixed;
+  right: 0.7rem;
+  bottom: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--muted-dim);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  user-select: none;
+}
+
 .card {
   width: 100%;
   max-width: 420px;

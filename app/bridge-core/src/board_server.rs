@@ -13,7 +13,17 @@ use tokio::sync::{broadcast, mpsc, Mutex};
 use tokio::time::{interval, Duration};
 use tokio_tungstenite::tungstenite::Message;
 
-const HEARTBEAT: Duration = Duration::from_secs(15);
+// Board liveness is detected by this WebSocket ping/pong — an event-driven
+// heartbeat, NOT polling: a few bytes every PING_INTERVAL and no CPU. A clean
+// disconnect (Close frame / EOF) is caught instantly by the read arm below;
+// this catches the UNCLEAN case (board powered off / Wi-Fi dropped with no TCP
+// FIN) that would otherwise linger as "connected" until the OS TCP timeout
+// (minutes). We drop the client once MAX_MISSED_PINGS pings go unanswered —
+// ~PING_INTERVAL * MAX_MISSED_PINGS of total silence — which surfaces a dead
+// board in well under ~10s while still tolerating one dropped pong on flaky
+// Wi-Fi (any inbound frame resets the counter).
+const PING_INTERVAL: Duration = Duration::from_secs(4);
+const MAX_MISSED_PINGS: u32 = 2;
 
 pub fn state_frame(vm: &NowPlayingVm) -> String {
     json!({ "type": "state", "data": vm }).to_string()
@@ -110,8 +120,8 @@ async fn handle_client(
         }
     }
 
-    let mut hb = interval(HEARTBEAT);
-    let mut awaiting_pong = false;
+    let mut hb = interval(PING_INTERVAL);
+    let mut missed: u32 = 0;
 
     loop {
         tokio::select! {
@@ -122,19 +132,27 @@ async fn handle_client(
                 Err(broadcast::error::RecvError::Closed) => break,
             },
             msg = rx.next() => match msg {
-                Some(Ok(Message::Text(raw))) => handle_board_msg(&raw, &cmd_tx),
-                Some(Ok(Message::Pong(_))) => awaiting_pong = false,
+                // Any inbound frame proves the link is alive — reset the counter.
+                Some(Ok(Message::Text(raw))) => { missed = 0; handle_board_msg(&raw, &cmd_tx); }
+                Some(Ok(Message::Pong(_))) => missed = 0,
                 Some(Ok(Message::Close(_))) | None => break,
                 Some(Err(_)) => break,
-                _ => {}
+                _ => missed = 0,
             },
             _ = hb.tick() => {
-                if awaiting_pong {
-                    tracing::info!("[board] client missed pong; dropping");
+                if missed >= MAX_MISSED_PINGS {
+                    tracing::info!(
+                        "[board] no pong in ~{}s; dropping",
+                        PING_INTERVAL.as_secs() * MAX_MISSED_PINGS as u64
+                    );
                     break;
                 }
-                awaiting_pong = true;
-                tx.send(Message::Ping(Vec::new())).await?;
+                missed += 1;
+                // A failed write means the socket is already gone — drop now
+                // instead of waiting out the miss counter.
+                if tx.send(Message::Ping(Vec::new())).await.is_err() {
+                    break;
+                }
             }
         }
     }

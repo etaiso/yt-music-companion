@@ -43,6 +43,28 @@
     opener.openUrl(url).catch((err) => console.error("openUrl failed for", url, err));
   }
 
+  // Try to launch the installed YouTube Music Desktop app via the backend
+  // `open_ytmd` command. If it isn't installed where we look (command returns
+  // false) or the bridge isn't reachable, fall back to the download page.
+  const YTMD_DOWNLOAD_URL = "https://ytmdesktop.app";
+  function openYtmd() {
+    const core = window.__TAURI__ && window.__TAURI__.core;
+    if (!core || typeof core.invoke !== "function") {
+      console.warn("__TAURI__.core.invoke unavailable; opening download page instead");
+      openExternal(YTMD_DOWNLOAD_URL);
+      return;
+    }
+    core
+      .invoke("open_ytmd")
+      .then((launched) => {
+        if (!launched) openExternal(YTMD_DOWNLOAD_URL);
+      })
+      .catch((err) => {
+        console.error("open_ytmd failed", err);
+        openExternal(YTMD_DOWNLOAD_URL);
+      });
+  }
+
   function fmtTime(sec) {
     const s = Math.max(0, Math.floor(Number(sec) || 0));
     const m = Math.floor(s / 60);
@@ -65,7 +87,10 @@
             class: "btn",
             type: "button",
             text: action.label,
-            onclick: () => openExternal(action.url),
+            // An action either runs a custom handler (e.g. launching an app via
+            // a Tauri command) or opens an external URL. The first button in a
+            // row is styled as the primary action (.btn:first-child in the CSS).
+            onclick: action.onClick ? action.onClick : () => openExternal(action.url),
           }),
         );
       }
@@ -201,7 +226,8 @@
           title: "YouTube Music Desktop isn’t running",
           body: "Start ytmdesktop and enable its Companion Server, then this window will pick it up automatically.",
           actions: [
-            { label: "Download ytmdesktop", url: "https://ytmdesktop.app" },
+            { label: "Open YouTube Music Desktop", onClick: openYtmd },
+            { label: "Download ytmdesktop", url: YTMD_DOWNLOAD_URL },
             {
               label: "How to enable Companion Server",
               url: "https://github.com/ytmdesktop/ytmdesktop#companion-server",
@@ -291,6 +317,10 @@
     if (!payload || typeof payload !== "object") return;
     switch (payload.type) {
       case "state":
+        // A track only belongs on the board-connected card. Drop any cached
+        // now-playing when we're in any other state, so a later flip back to
+        // board-connected can't flash the stale song (#2).
+        if (payload.data !== "board-connected") lastNowPlaying = null;
         app.replaceChildren(renderState(payload.data));
         break;
       case "auth-code":
@@ -330,12 +360,28 @@
       .catch((err) => console.error("current_state failed", err));
   }
 
+  // Fill the persistent corner build tag. Best-effort: if the command or the
+  // bridge isn't reachable, the tag just stays blank rather than erroring.
+  function showVersion() {
+    const node = document.getElementById("app-version");
+    if (!node) return;
+    const core = window.__TAURI__ && window.__TAURI__.core;
+    if (!core || typeof core.invoke !== "function") return;
+    core
+      .invoke("app_version")
+      .then((v) => {
+        if (v) node.textContent = `v${v}`;
+      })
+      .catch((err) => console.error("app_version failed", err));
+  }
+
   function init() {
     const tauri = window.__TAURI__;
     if (!tauri || !tauri.event || typeof tauri.event.listen !== "function") {
       console.error("window.__TAURI__.event.listen is unavailable; is this running inside Tauri?");
       return;
     }
+    showVersion();
     let liveSeen = false;
     tauri.event
       .listen("bridge-event", ({ payload }) => {

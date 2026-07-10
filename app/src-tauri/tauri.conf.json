@@ -13,6 +13,8 @@
         "title": "YT Music Board Bridge",
         "width": 480,
         "height": 360,
+        "minWidth": 480,
+        "minHeight": 360,
         "visible": false,
         "resizable": true
       }
